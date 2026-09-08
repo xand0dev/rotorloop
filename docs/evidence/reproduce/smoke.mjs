@@ -1,0 +1,30 @@
+import fs from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import {connect,delay} from './cdp.mjs';
+const evidence=new URL('../', import.meta.url).pathname;
+const c=await connect();
+const p=await c.page('http://127.0.0.1:5174/');
+await delay(800);await p.activate();
+const state=()=>p.evaluate('window.__qa.state()');
+const key=(code,type='keyDown',extra={})=>p.call('Input.dispatchKeyEvent',{type,code,key:code.startsWith('Key')?code.slice(3).toLowerCase():code,...extra});
+const before=await state();
+await key('KeyW');await delay(600);const thrust=await state();await p.screenshot(evidence+'thrust.png');await key('KeyW','keyUp');
+assert.ok(thrust.y<before.y);assert.equal(thrust.thrust,true);
+await key('KeyD');await delay(300);await key('KeyD','keyUp');const turned=await state();assert.ok(turned.angle>thrust.angle);
+await key('KeyR');await delay(80);await key('KeyW');await delay(250);const resetMoving=await state();await key('KeyR','keyDown',{autoRepeat:true});await delay(250);const heldReset=await state();assert.ok(heldReset.y<resetMoving.y);await key('KeyR','keyUp');await key('KeyW','keyUp');
+await key('KeyR');await key('KeyR','keyUp');await delay(60);
+const reset=await state();assert.ok(Math.abs(reset.x-before.x)<1);
+await key('KeyW');await delay(2300);const wrapped=await state();const size=await p.evaluate('__qa.size()');assert.ok(wrapped.y>=0 && wrapped.y<size.height);await key('KeyW','keyUp');
+await key('KeyW');const bg=await c.page('about:blank');await bg.activate();await delay(500);await p.activate();await delay(100);const cleared=await state();assert.equal(cleared.thrust,false);
+const dimensions=[];
+for(const [width,height,dpr] of [[900,600,1],[900,600,2],[390,700,2],[1100,750,2]]){
+ await p.call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:dpr,mobile:false});await delay(100);
+ const d=await p.evaluate(`(()=>{const c=document.querySelector('canvas');const m=c.getContext('2d').getTransform();return {size:__qa.size(),backing:[c.width,c.height],transform:[m.a,m.d],state:__qa.state()}})()`);
+ assert.equal(d.backing[0],width*dpr);assert.equal(d.backing[1],height*dpr);assert.equal(d.transform[0],dpr);assert.equal(d.transform[1],dpr);dimensions.push(d);
+ if(width===390)await p.screenshot(evidence+'mobile.png');
+}
+await key('KeyR');await key('KeyR','keyUp');await delay(1200);await p.screenshot(evidence+'arena.png');
+const report={date:new Date().toISOString(),browser:c.info.Browser,before,thrust,turned,resetMoving,heldReset,reset,wrapped,cleared,dimensions,hud:await p.evaluate('__qa.stats()'),errors:c.events.filter(e=>e.method==='Runtime.exceptionThrown')};assert.equal(report.errors.length,0);
+await fs.writeFile(evidence+'browser-smoke.json',JSON.stringify(report,null,2));
+console.log(JSON.stringify({checks:'controls, thrust, yaw, reset edge, wrap bounds, hidden key cleanup, repeated resize, DPR 1/2, mobile, console',hud:report.hud,errors:report.errors.length}));
+await bg.close();await p.close();c.close();

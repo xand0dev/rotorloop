@@ -1,0 +1,49 @@
+v24.20.0
+11.17.0
+
+> rotorloop@1.0.0 check
+> biome check .
+
+Checked 16 files in 20ms. No fixes applied.
+
+> rotorloop@1.0.0 test
+> node --test
+
+✔ DPR-only changes recover without events and never compound transforms (0.977958ms)
+✔ held state and a quick tap preserve one consuming press edge (0.628ms)
+✔ blur, hidden document, and destruction clear held and pending input (0.235834ms)
+✔ shortcuts and editable input are ignored; only control arrows prevent defaults (0.164542ms)
+✔ 60 and 120 Hz rendering produce exactly 300 identical fixed steps (4.168042ms)
+✔ first frame, zero-step frame, catch-up, clamp and raw interval (0.166833ms)
+✔ start/stop are idempotent and restart drops old elapsed time (0.098666ms)
+✔ stop from render does not enqueue another frame (0.061ms)
+✔ restart inside render or simulate leaves exactly one new run (0.114458ms)
+✔ renderer interpolates frozen snapshots across the short angular seam (0.408375ms)
+✔ integration leaves frozen state and input intact and thrusts upward (0.523292ms)
+✔ drag decays velocity exponentially and sustained thrust respects cap (1.192ms)
+✔ same 300 tick input sequence reproduces exactly (0.440916ms)
+✔ wrap handles negative and multiple-arena crossings without mutation (0.062417ms)
+✔ wrap synchronizes crossed axes while preserving motion on other axes (0.06125ms)
+✔ heading interpolation crosses the angular seam through shortest path (0.050667ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 48.039458
+
+> rotorloop@1.0.0 build
+> vite build
+
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 11 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                 0.89 kB │ gzip: 0.51 kB
+dist/assets/index-sPzySZao.css  0.47 kB │ gzip: 0.32 kB
+dist/assets/index-WK7BUkmU.js   7.55 kB │ gzip: 3.35 kB
+
+✓ built in 31ms

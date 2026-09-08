@@ -1,0 +1,24 @@
+{
+  "date": "2026-09-08T12:17:48.993Z",
+  "revision": "1cb1f03",
+  "url": "http://127.0.0.1:5173/",
+  "state": {
+    "title": "RotorLoop — FPV Drone Arena",
+    "css": [
+      1100,
+      713
+    ],
+    "backing": [
+      2200,
+      1426
+    ],
+    "dpr": 2,
+    "transform": [
+      2,
+      2
+    ],
+    "noTestObserver": true,
+    "noExperimentFixture": true
+  },
+  "errors": []
+}
