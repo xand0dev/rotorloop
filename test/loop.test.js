@@ -99,3 +99,26 @@ test("stop from render does not enqueue another frame", (t) => {
   clock.frame(0);
   assert.equal(clock.pending.size, 0);
 });
+
+test("restart inside render or simulate leaves exactly one new run", (t) => {
+  const clock = scheduler(t);
+  for (const phase of ["simulate", "render"]) {
+    let restarted = false;
+    const restart = () => {
+      if (restarted) return;
+      restarted = true;
+      loop.stop();
+      loop.start();
+    };
+    const loop = createLoop({
+      simulate: phase === "simulate" ? restart : () => {},
+      render: phase === "render" ? restart : () => {},
+    });
+    loop.start();
+    clock.frame(0);
+    clock.frame(20);
+    assert.equal(clock.pending.size, 1);
+    loop.stop();
+    assert.equal(clock.pending.size, 0);
+  }
+});

@@ -7,6 +7,7 @@ export function createLoop({ step = STEP, simulate, render }) {
     throw new RangeError("step must be a positive finite number");
   }
   let running = false;
+  let generation = 0;
   let requestId = null;
   let last = null;
   let accumulator = 0;
@@ -15,7 +16,8 @@ export function createLoop({ step = STEP, simulate, render }) {
   let sampleFrames = 0;
   let stats = { stepsPerSecond: 0, framesPerSecond: 0, frameMs: 0 };
 
-  function frame(now) {
+  function frame(now, run) {
+    if (run !== generation) return;
     requestId = null;
     if (!running) return;
     if (last === null) {
@@ -28,6 +30,7 @@ export function createLoop({ step = STEP, simulate, render }) {
       // A tiny tolerance avoids losing a tick to floating-point subtraction.
       while (running && accumulator + 1e-12 >= step) {
         simulate(step);
+        if (run !== generation) return;
         accumulator = Math.max(0, accumulator - step);
         sampleSteps += 1;
       }
@@ -43,23 +46,27 @@ export function createLoop({ step = STEP, simulate, render }) {
     }
     if (!running) return;
     render(accumulator / step);
-    if (running) requestId = requestAnimationFrame(frame);
+    if (running && run === generation) {
+      requestId = requestAnimationFrame((time) => frame(time, run));
+    }
   }
 
   function start() {
     if (running) return;
     running = true;
+    const run = ++generation;
     last = null;
     accumulator = 0;
     sampleStart = null;
     sampleSteps = 0;
     sampleFrames = 0;
     stats = { stepsPerSecond: 0, framesPerSecond: 0, frameMs: 0 };
-    requestId = requestAnimationFrame(frame);
+    requestId = requestAnimationFrame((time) => frame(time, run));
   }
 
   function stop() {
     running = false;
+    generation += 1;
     if (requestId !== null) cancelAnimationFrame(requestId);
     requestId = null;
   }
