@@ -117,7 +117,7 @@ export function drawShip(ctx, ship, { reducedMotion = false } = {}) {
   ctx.restore();
 }
 
-export function drawHud(ctx, stats, { width, height }) {
+export function drawHud(ctx, stats, { width, height }, alpha = 0) {
   const inset = width < 500 ? 20 : 32;
   ctx.save();
   ctx.fillStyle = "rgba(16, 28, 39, 0.93)";
@@ -143,6 +143,20 @@ export function drawHud(ctx, stats, { width, height }) {
     ctx.fillText(label, inset, y);
     ctx.fillStyle = COLORS.pale;
     ctx.fillText(value, inset + 85, y);
+  }
+
+  // This is the real accumulator remainder, not a decorative progress meter.
+  if (width >= 720) {
+    const x = width - inset - 200;
+    ctx.fillStyle = COLORS.muted;
+    ctx.font = `10px ${MONO}`;
+    ctx.fillText("BETWEEN SIMULATION TICKS", x, inset + 9);
+    ctx.fillStyle = COLORS.marking;
+    ctx.fillRect(x, inset + 22, 200, 3);
+    ctx.fillStyle = COLORS.orange;
+    ctx.fillRect(x, inset + 22, 200 * alpha, 3);
+    ctx.fillStyle = COLORS.muted;
+    ctx.fillText(`α ${alpha.toFixed(2)}  ·  FIXED 1/60 s`, x, inset + 44);
   }
 
   const compact = width < 600;

@@ -41,13 +41,14 @@ function simulate(dt) {
 }
 
 function render(alpha) {
+  surface.syncDpr();
   const size = surface.getSize();
   if (size.width <= 0 || size.height <= 0) return;
   drawArena(surface.ctx, size);
   drawShip(surface.ctx, interpolateShip(previous, current, alpha), {
     reducedMotion: reducedMotion.matches,
   });
-  drawHud(surface.ctx, loop.getStats(), size);
+  drawHud(surface.ctx, loop.getStats(), size, alpha);
 }
 
 const loop = createLoop({ simulate, render });

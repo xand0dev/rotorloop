@@ -40,6 +40,11 @@ export function createCanvas(canvas, onResize = () => {}) {
   return {
     ctx,
     getSize: () => ({ ...size }),
+    // Some hosts change DPR without delivering a media-query change event.
+    // This cheap frame check reads layout only when density actually changes.
+    syncDpr() {
+      if ((window.devicePixelRatio || 1) !== size.dpr) watchDensity();
+    },
     destroy() {
       destroyed = true;
       observer.disconnect();
