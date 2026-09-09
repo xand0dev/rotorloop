@@ -12,7 +12,7 @@ Fly a quadcopter. See the difference between a simulation tick and a rendered fr
 
 1. **0–25 s:** fly with W and A/D; cross an edge. Watch SIM and DISPLAY count different work.
 2. **25–40 s:** hold R, then add W while still holding R. Reset happens once; flight continues. Lose focus and return: no stuck thrust.
-3. **40–55 s:** point at the live α strip. It is the accumulator remainder, used to blend previous/current snapshots.
+3. **40–55 s:** press H to compare the compact HUD and telemetry. Explain the interval strip, steps/frame and live α: a render callback can execute zero or several simulation ticks.
 4. **55–70 s:** open [loop.js](src/loop.js). Find the clamp, fixed-step while loop and alpha. The entire production scheduler fits in one small module.
 5. **70–90 s:** compare the measurements below. Explain why p95 misses the busy-wait and why genuine CPU 6× barely changed this scene's FPS.
 
@@ -34,6 +34,7 @@ Open the local URL printed by Vite. Without nvm, use any existing Node 24 instal
 | W / ↑ | Arcade forward thrust |
 | A / ←, D / → | Yaw left / right |
 | R | Reset once per press |
+| H | Toggle loop telemetry; flight continues |
 
 Click the arena to focus. Keyboard controls require a keyboard; the layout resizes to narrow viewports but does not implement the optional touch/gamepad stretch tasks.
 
@@ -59,15 +60,39 @@ rAF timestamp → accumulator → simulate(1/60), zero or more times
 | --- | --- |
 | [main.js](src/main.js) | Connect input, snapshots, reset, arena and rendering; clean up hot reload |
 | [loop.js](src/loop.js) | rAF ownership, start/stop, clamp, accumulator and measured statistics |
+| [telemetry.js](src/telemetry.js) | Bounded interval history, distribution summaries and simulation totals |
 | [input.js](src/input.js) | Closure state; held vs consuming press edges; repeat/focus cleanup |
 | [sim](src/sim) | Immutable plain-data ship integration and arena math, without DOM or Canvas |
 | [render](src/render) | Canvas transforms, CSS-pixel/DPR boundary, interpolation and drawing |
 
 `createLoop({ step = 1/60, simulate, render })` returns `start`, `stop`, `getStats`. `integrate(ship, { turn, thrust }, dt)` returns a new `{ x, y, vx, vy, angle, thrust }`. Rendering never advances physics.
 
-SIM and DISPLAY divide actual counts by elapsed time; FRAME is the latest callback interval, **not drawing CPU time**. DISPLAY counts render callbacks, not independently verified physical presentations. The alpha strip shows the actual accumulator fraction and is omitted on narrow layouts.
+SIM and DISPLAY divide actual counts by elapsed time; FRAME is the latest callback interval, **not drawing CPU time**. DISPLAY counts render callbacks, not independently verified physical presentations. The alpha strip shows the actual accumulator fraction.
 
 The incoming frame delta is capped at 0.25 s. Whole fixed steps consume the accumulator; the fractional remainder becomes alpha. Near 60 steps/s is the normal-load target. Hidden tabs and discarded time cannot be promised 60 steps per wall second. Interpolation adds approximately one simulation tick of presentation delay.
+
+## Read the telemetry
+
+The optional Lab 01 frame-time strip is implemented as a chronological history of the last **120 measured intervals**. H toggles its panel; it starts open on desktop and closed on narrow screens. Very short layouts retain the compact HUD. Collection continues when hidden. R resets the drone, while telemetry totals persist until the loop restarts.
+
+| Metric | What it lets you explain |
+| --- | --- |
+| Interval strip | Uneven pacing that an average FPS can hide. Red means above the **16.7 ms reference**, not a measured dropped frame. Bars clip at 50 ms; numeric summaries retain raw values. |
+| Mean / p95 / maximum | The mean describes the window; p95 is the nearest-rank 95th percentile; maximum catches rare stalls p95 may miss. |
+| Steps / frame | Zero or multiple fixed ticks within one render callback; rendering and simulation have different clocks. |
+| Sim clock / total ticks | Simulated seconds = completed ticks × 1/60; this need not equal elapsed wall time. |
+| Clamp lost | Cumulative elapsed time discarded above 250 ms per interval, in seconds. It is not input latency or a dropped-frame count. |
+| Alpha | The actual remaining fraction of a tick used for interpolation. |
+
+The first callback establishes the time origin and adds no artificial zero sample. History updates each callback; mean/p95/max refresh after approximately 250 ms of accumulated intervals, so the numbers can briefly lag the moving strip. History covers roughly two seconds at 60 callbacks/s and one at 120, **not a fixed duration**. Storage is bounded and sorting happens only on summary updates.
+
+These metrics were added after the original `lab-01` snapshot. The three experiments below retain their original evidence and baseline revisions; they are not benchmarks of the expanded HUD.
+
+## Where multiplayer enters the course
+
+The [course roadmap](https://github.com/rmalkevy/Programming-Practice-Projects/blob/main/courses/javascript/README.md) introduces a Node.js/WebSocket server and rooms in **Lab 04**, authoritative state with prediction/reconciliation and binary snapshots in **Lab 05**, then public deployment in **Lab 08**. Vite currently serves development files; it is not a multiplayer game server.
+
+The pure simulation is reusable in Node. Future work must give every player the same server-owned arena dimensions (today bounds follow the local Canvas), sequence input commands by tick, and run the authoritative clock on the server. Fixed stepping is a foundation for that work, not a networking implementation.
 
 ## Decisions worth asking about
 
@@ -153,7 +178,9 @@ npm test
 npm run build
 ```
 
-Validated on Node 24.20.0: **16 tests passed**, Biome clean, production build passed. Browser checks covered thrust/yaw, held R, wrapping, focus loss, repeat resize, DPR 1/2 and console errors. Actual smoke HUD: 60 steps/s and 120 render callbacks/s. Synthetic 60/120 Hz scheduler tests are labeled tests, not hardware evidence.
+Original `lab-01` validation on Node 24.20.0: **16 tests passed**, Biome clean, production build passed. Browser checks covered thrust/yaw, held R, wrapping, focus loss, repeat resize, DPR 1/2 and console errors. Original smoke HUD: 60 steps/s and 120 render callbacks/s. Synthetic 60/120 Hz scheduler tests are labeled tests, not hardware evidence.
+
+The telemetry extension passed **all 19 tests**, Biome and the production build on Node 24.20.0, including bounded history, summary math, raw stalls, first-frame exclusion and restart cleanup. Its separate [browser smoke](docs/evidence/telemetry-smoke.json) records functional checks, not monitor benchmarks; see the [method and reproduction command](docs/evidence/telemetry-method.md).
 
 [Independent review and fixes](docs/review.md) · [Browser evidence](docs/evidence/browser-smoke.json)
 
@@ -167,5 +194,6 @@ Validated on Node 24.20.0: **16 tests passed**, Biome clean, production build pa
 - [x] Three measured experiments and event-loop explanations
 - [x] English README, Ukrainian report and all Reflection answers
 - [x] Unit tests, browser evidence and independent review
+- [x] Optional last-120 frame-time strip with explanatory telemetry
 
-Release verification: `git show lab-01 --stat` and `git rev-parse lab-01^{commit} HEAD` must identify the final validated release. See the GitHub repository's `lab-01` tag for the submission snapshot.
+`lab-01` preserves the original validated submission at `0f134a2`. The later telemetry extension is on `main`; the published tag is not silently moved. Inspect either snapshot with `git show lab-01 --stat` or `git show HEAD --stat`.

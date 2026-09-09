@@ -40,3 +40,13 @@ No P0/P1 issues remained in either review. The follow-up engineering review conf
 - Responsive mobile layout has no optional touch controls.
 - Automated keyboard validation is not described as extensive human playtesting.
 - Fixed stepping supports repeatability under controlled inputs and math, not universal cross-platform lockstep.
+
+## Telemetry extension review — 2026-09-09
+
+An independent engineering/rubric reviewer inspected the telemetry diff: no P0/P1 or blocking findings. Bounded history, defensive snapshots, first-frame exclusion, raw stall reporting, tick/time units, H/R semantics and restart behavior were checked. The requested clarification was applied: summaries refresh approximately every 250 ms, while history moves every callback. No networking was added; the frame-duration strip matches the Lab 01 optional stretch.
+
+Final validation used Node 24.20.0: `npm run check`, all 19 tests and `npm run build` passed. The production JavaScript bundle is 9.84 kB (4.22 kB gzip).
+
+Functional smoke in isolated Headless Chrome 152.0.7977.83 checked the desktop panel, H collapse/expand, R with persistent totals, 390×700 at DPR 2 (780×1400 backing, transform 2), 300×540 at DPR 1, and a short 700×350 layout that suppresses the expanded panel. Screenshots were visually inspected at desktop and minimum size. No uncaught JS exceptions were recorded. Headless callback rates are not physical-monitor evidence. See [telemetry-smoke.json](evidence/telemetry-smoke.json) and the matching `telemetry-*.png` files.
+
+The in-app browser screenshot at its 90% zoom clipped the right/bottom capture; the independent Chrome screenshots and dimensions are the retained layout evidence. Existing three-experiment measurements were not rerun or relabeled for this extension. The original published `lab-01` tag remains intact; the addition is on `main`.

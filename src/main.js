@@ -20,6 +20,7 @@ const surface = createCanvas(canvas, ({ width, height }) => {
   previous = current;
 });
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+let showTelemetry = surface.getSize().width >= 900;
 
 function reset() {
   const { width, height } = surface.getSize();
@@ -41,6 +42,7 @@ function simulate(dt) {
 }
 
 function render(alpha) {
+  if (input.justPressed("KeyH")) showTelemetry = !showTelemetry;
   surface.syncDpr();
   const size = surface.getSize();
   if (size.width <= 0 || size.height <= 0) return;
@@ -48,7 +50,7 @@ function render(alpha) {
   drawShip(surface.ctx, interpolateShip(previous, current, alpha), {
     reducedMotion: reducedMotion.matches,
   });
-  drawHud(surface.ctx, loop.getStats(), size, alpha);
+  drawHud(surface.ctx, loop.getStats(), size, alpha, showTelemetry);
 }
 
 const loop = createLoop({ simulate, render });

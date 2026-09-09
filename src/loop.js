@@ -1,3 +1,5 @@
+import { createTelemetry } from "./telemetry.js";
+
 export const STEP = 1 / 60;
 export const MAX_FRAME_DELTA = 0.25;
 
@@ -15,6 +17,7 @@ export function createLoop({ step = STEP, simulate, render }) {
   let sampleSteps = 0;
   let sampleFrames = 0;
   let stats = { stepsPerSecond: 0, framesPerSecond: 0, frameMs: 0 };
+  let telemetry = createTelemetry(step);
 
   function frame(now, run) {
     if (run !== generation) return;
@@ -26,14 +29,22 @@ export function createLoop({ step = STEP, simulate, render }) {
     } else {
       stats.frameMs = Math.max(0, now - last);
       last = now;
-      accumulator += Math.min(stats.frameMs / 1000, MAX_FRAME_DELTA);
+      const elapsed = Math.min(stats.frameMs / 1000, MAX_FRAME_DELTA);
+      accumulator += elapsed;
+      let stepsThisFrame = 0;
       // A tiny tolerance avoids losing a tick to floating-point subtraction.
       while (running && accumulator + 1e-12 >= step) {
         simulate(step);
         if (run !== generation) return;
         accumulator = Math.max(0, accumulator - step);
         sampleSteps += 1;
+        stepsThisFrame += 1;
       }
+      telemetry.record(
+        stats.frameMs,
+        stepsThisFrame,
+        Math.max(0, stats.frameMs - MAX_FRAME_DELTA * 1000),
+      );
       sampleFrames += 1;
       const seconds = (now - sampleStart) / 1000;
       if (seconds >= 1) {
@@ -61,6 +72,7 @@ export function createLoop({ step = STEP, simulate, render }) {
     sampleSteps = 0;
     sampleFrames = 0;
     stats = { stepsPerSecond: 0, framesPerSecond: 0, frameMs: 0 };
+    telemetry = createTelemetry(step);
     requestId = requestAnimationFrame((time) => frame(time, run));
   }
 
@@ -71,5 +83,9 @@ export function createLoop({ step = STEP, simulate, render }) {
     requestId = null;
   }
 
-  return { start, stop, getStats: () => ({ ...stats }) };
+  return {
+    start,
+    stop,
+    getStats: () => ({ ...stats, ...telemetry.snapshot() }),
+  };
 }

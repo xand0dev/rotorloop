@@ -62,6 +62,7 @@ test("first frame, zero-step frame, catch-up, clamp and raw interval", (t) => {
   loop.start();
   clock.frame(70000);
   assert.equal(ticks, 0);
+  assert.deepEqual(loop.getStats().frameHistory, []);
   clock.frame(70008);
   assert.equal(ticks, 0);
   clock.frame(70058);
@@ -69,6 +70,11 @@ test("first frame, zero-step frame, catch-up, clamp and raw interval", (t) => {
   clock.frame(80058);
   assert.equal(ticks, 18);
   assert.equal(loop.getStats().frameMs, 10000);
+  assert.equal(loop.getStats().stepsThisFrame, 15);
+  assert.equal(loop.getStats().totalSteps, 18);
+  assert.equal(loop.getStats().discardedMs, 9750);
+  assert.deepEqual(loop.getStats().frameHistory, [8, 50, 10000]);
+  assert.equal(loop.getStats().maxFrameMs, 10000);
   assert.ok(alphas.every((a) => a >= 0 && a < 1));
   loop.stop();
 });
@@ -87,6 +93,9 @@ test("start/stop are idempotent and restart drops old elapsed time", (t) => {
   assert.equal(clock.pending.size, 0);
   loop.start();
   clock.frame(50000);
+  assert.deepEqual(loop.getStats().frameHistory, []);
+  assert.equal(loop.getStats().totalSteps, 0);
+  assert.equal(loop.getStats().discardedMs, 0);
   clock.frame(50010);
   assert.equal(ticks, 0);
   loop.stop();

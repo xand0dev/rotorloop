@@ -60,6 +60,12 @@ Experiments use one known-good baseline and separate worktrees. Record raw delta
 
 ## 9. Lab Requirement Matrix
 
+### Requested telemetry extension — 2026-09-09
+
+The Lab 01 Stretch explicitly proposes a strip of the last 120 frame durations, red above 16.7 ms. Add this as an optional H-toggle panel alongside rolling mean/p95/max, actual steps per frame, cumulative simulated time/ticks and time discarded by the existing clamp. This directly exposes the accumulator's behavior without introducing networking or later-lab architecture. Samples are raw callback intervals, not GPU timings or an estimate of dropped display frames. The window is 120 samples (about one second at 120 Hz, two at 60 Hz), not a fixed time window. Summaries refresh at most four times per accumulated second; history storage stays bounded. The first rAF establishes the baseline and is not a zero-duration sample. Restart clears telemetry; hiding the panel does not stop measurement. The original lab-01 tag and 2026-09-08 benchmark files remain historical evidence for their recorded revisions.
+
+Course sequence checked against the supplied course README: Lab 4 introduces Node, rooms and WebSocket join/leave/chat; Lab 5 adds authoritative simulation, prediction/reconciliation, shared modules and binary snapshots; Lab 8 publishes multiplayer. Current ship/arena modules can be reused without DOM. Future multiplayer must choose shared arena dimensions instead of each client's canvas size, identify commands by tick/sequence, and use a server-owned scheduler; browser rAF itself does not move to Node.
+
 | Requirement | Implementation | Validation / evidence |
 | --- | --- | --- |
 | Vite vanilla, ESM, Biome, Node version | package.json, index.html, .nvmrc, biome.json | install, check, build |

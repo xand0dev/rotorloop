@@ -1,0 +1,326 @@
+{
+  "date": "2026-09-09T07:19:34.354Z",
+  "browser": {
+    "protocolVersion": "1.3",
+    "product": "Chrome/152.0.7977.83",
+    "revision": "@79460ebecaa5625e57a5fb679a735659e73dc687",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+    "jsVersion": "15.2.124.21"
+  },
+  "kind": "Headless Chrome functional smoke; not a monitor or performance benchmark",
+  "checks": [
+    {
+      "name": "desktop",
+      "viewport": [
+        1100,
+        750
+      ],
+      "css": [
+        1100,
+        750
+      ],
+      "backing": [
+        1100,
+        750
+      ],
+      "dpr": 1,
+      "transform": [
+        1,
+        1
+      ],
+      "hud": [
+        "0.000 s",
+        "α 1.00 · TOTALS SINCE LOOP START",
+        "W / ↑ THRUST    A D / ← → YAW    R RESET    H METRICS    ·    EDGES WRAP",
+        "ROTORLOOP",
+        "FPV DRONE ARENA / LAB 01",
+        "SIM",
+        "60.0 steps/s",
+        "DISPLAY",
+        "60.0 fps",
+        "FRAME",
+        "16.7 ms",
+        "LOOP TELEMETRY",
+        "LAST 77/120 INTERVALS · H HIDE",
+        "16.7 ms REF · SCALE 0–50 ms (CLIPPED)",
+        "MEAN ms",
+        "16.7",
+        "P95 ms",
+        "16.7",
+        "MAX ms",
+        "16.8",
+        "STEPS / FRAME",
+        "2",
+        "SIM CLOCK",
+        "1.28 s",
+        "TOTAL TICKS",
+        "77",
+        "CLAMP LOST",
+        "0.000 s",
+        "α 0.00 · TOTALS SINCE LOOP START",
+        "W / ↑ THRUST    A D / ← → YAW    R RESET    H METRICS    ·    EDGES WRAP"
+      ]
+    },
+    {
+      "name": "hidden",
+      "viewport": [
+        1100,
+        750
+      ],
+      "css": [
+        1100,
+        750
+      ],
+      "backing": [
+        1100,
+        750
+      ],
+      "dpr": 1,
+      "transform": [
+        1,
+        1
+      ],
+      "hud": [
+        "60.0 steps/s",
+        "DISPLAY",
+        "60.0 fps",
+        "FRAME",
+        "16.6 ms",
+        "BETWEEN SIMULATION TICKS",
+        "α 1.00  ·  FIXED 1/60 s",
+        "W / ↑ THRUST    A D / ← → YAW    R RESET    H METRICS    ·    EDGES WRAP",
+        "ROTORLOOP",
+        "FPV DRONE ARENA / LAB 01",
+        "SIM",
+        "60.0 steps/s",
+        "DISPLAY",
+        "60.0 fps",
+        "FRAME",
+        "16.7 ms",
+        "BETWEEN SIMULATION TICKS",
+        "α 1.00  ·  FIXED 1/60 s",
+        "W / ↑ THRUST    A D / ← → YAW    R RESET    H METRICS    ·    EDGES WRAP",
+        "ROTORLOOP",
+        "FPV DRONE ARENA / LAB 01",
+        "SIM",
+        "60.0 steps/s",
+        "DISPLAY",
+        "60.0 fps",
+        "FRAME",
+        "16.7 ms",
+        "BETWEEN SIMULATION TICKS",
+        "α 0.00  ·  FIXED 1/60 s",
+        "W / ↑ THRUST    A D / ← → YAW    R RESET    H METRICS    ·    EDGES WRAP"
+      ]
+    },
+    {
+      "name": "reset",
+      "viewport": [
+        1100,
+        750
+      ],
+      "css": [
+        1100,
+        750
+      ],
+      "backing": [
+        1100,
+        750
+      ],
+      "dpr": 1,
+      "transform": [
+        1,
+        1
+      ],
+      "hud": [
+        "0.000 s",
+        "α 0.99 · TOTALS SINCE LOOP START",
+        "W / ↑ THRUST    A D / ← → YAW    R RESET    H METRICS    ·    EDGES WRAP",
+        "ROTORLOOP",
+        "FPV DRONE ARENA / LAB 01",
+        "SIM",
+        "59.0 steps/s",
+        "DISPLAY",
+        "60.0 fps",
+        "FRAME",
+        "16.7 ms",
+        "LOOP TELEMETRY",
+        "LAST 120/120 INTERVALS · H HIDE",
+        "16.7 ms REF · SCALE 0–50 ms (CLIPPED)",
+        "MEAN ms",
+        "16.7",
+        "P95 ms",
+        "16.7",
+        "MAX ms",
+        "16.8",
+        "STEPS / FRAME",
+        "1",
+        "SIM CLOCK",
+        "2.62 s",
+        "TOTAL TICKS",
+        "157",
+        "CLAMP LOST",
+        "0.000 s",
+        "α 0.99 · TOTALS SINCE LOOP START",
+        "W / ↑ THRUST    A D / ← → YAW    R RESET    H METRICS    ·    EDGES WRAP"
+      ]
+    },
+    {
+      "name": "narrow",
+      "viewport": [
+        390,
+        700
+      ],
+      "css": [
+        390,
+        700
+      ],
+      "backing": [
+        780,
+        1400
+      ],
+      "dpr": 2,
+      "transform": [
+        2,
+        2
+      ],
+      "hud": [
+        "W / ↑ THRUST   A D / ← → YAW",
+        "R RESET  ·  H METRICS  ·  WRAP",
+        "ROTORLOOP",
+        "FPV DRONE ARENA / LAB 01",
+        "SIM",
+        "59.0 steps/s",
+        "DISPLAY",
+        "60.0 fps",
+        "FRAME",
+        "16.7 ms",
+        "LOOP TELEMETRY",
+        "LAST 120/120 INTERVALS · H HIDE",
+        "16.7 ms REF · SCALE 0–50 ms (CLIPPED)",
+        "MEAN ms",
+        "16.7",
+        "P95 ms",
+        "16.7",
+        "MAX ms",
+        "16.8",
+        "STEPS / FRAME",
+        "1",
+        "SIM CLOCK",
+        "2.98 s",
+        "TOTAL TICKS",
+        "179",
+        "CLAMP LOST",
+        "0.000 s",
+        "α 1.00 · TOTALS SINCE LOOP START",
+        "W / ↑ THRUST   A D / ← → YAW",
+        "R RESET  ·  H METRICS  ·  WRAP"
+      ]
+    },
+    {
+      "name": "minimum",
+      "viewport": [
+        300,
+        540
+      ],
+      "css": [
+        300,
+        540
+      ],
+      "backing": [
+        300,
+        540
+      ],
+      "dpr": 1,
+      "transform": [
+        1,
+        1
+      ],
+      "hud": [
+        "W / ↑ THRUST   A D / ← → YAW",
+        "R RESET  ·  H METRICS  ·  WRAP",
+        "ROTORLOOP",
+        "FPV DRONE ARENA / LAB 01",
+        "SIM",
+        "60.0 steps/s",
+        "DISPLAY",
+        "60.0 fps",
+        "FRAME",
+        "16.7 ms",
+        "LOOP TELEMETRY",
+        "LAST 120/120 INTERVALS · H HIDE",
+        "16.7 ms REF · SCALE 0–50 ms (CLIPPED)",
+        "MEAN ms",
+        "16.7",
+        "P95 ms",
+        "16.8",
+        "MAX ms",
+        "16.8",
+        "STEPS / FRAME",
+        "1",
+        "SIM CLOCK",
+        "3.35 s",
+        "TOTAL TICKS",
+        "201",
+        "CLAMP LOST",
+        "0.000 s",
+        "α 0.99 · TOTALS SINCE LOOP START",
+        "W / ↑ THRUST   A D / ← → YAW",
+        "R RESET  ·  H METRICS  ·  WRAP"
+      ]
+    },
+    {
+      "name": "short",
+      "viewport": [
+        700,
+        350
+      ],
+      "css": [
+        700,
+        350
+      ],
+      "backing": [
+        700,
+        350
+      ],
+      "dpr": 1,
+      "transform": [
+        1,
+        1
+      ],
+      "hud": [
+        "ROTORLOOP",
+        "FPV DRONE ARENA / LAB 01",
+        "SIM",
+        "60.0 steps/s",
+        "DISPLAY",
+        "60.0 fps",
+        "FRAME",
+        "16.7 ms",
+        "W / ↑ THRUST   A D / ← → YAW",
+        "R RESET  ·  H METRICS  ·  WRAP",
+        "ROTORLOOP",
+        "FPV DRONE ARENA / LAB 01",
+        "SIM",
+        "60.0 steps/s",
+        "DISPLAY",
+        "60.0 fps",
+        "FRAME",
+        "16.7 ms",
+        "W / ↑ THRUST   A D / ← → YAW",
+        "R RESET  ·  H METRICS  ·  WRAP",
+        "ROTORLOOP",
+        "FPV DRONE ARENA / LAB 01",
+        "SIM",
+        "60.0 steps/s",
+        "DISPLAY",
+        "60.0 fps",
+        "FRAME",
+        "16.7 ms",
+        "W / ↑ THRUST   A D / ← → YAW",
+        "R RESET  ·  H METRICS  ·  WRAP"
+      ]
+    }
+  ],
+  "errors": []
+}

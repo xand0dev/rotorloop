@@ -117,7 +117,101 @@ export function drawShip(ctx, ship, { reducedMotion = false } = {}) {
   ctx.restore();
 }
 
-export function drawHud(ctx, stats, { width, height }, alpha = 0) {
+function drawTelemetry(ctx, stats, x, y, width, alpha) {
+  const left = x + 14;
+  const plotWidth = width - 28;
+  const plotTop = y + 40;
+  const plotHeight = 56;
+  const chartMaxMs = 50;
+  ctx.fillStyle = "rgba(16, 28, 39, 0.96)";
+  ctx.fillRect(x, y, width, 272);
+  ctx.fillStyle = COLORS.pale;
+  ctx.font = `11px ${MONO}`;
+  ctx.fillText("LOOP TELEMETRY", left, y + 20);
+  ctx.fillStyle = COLORS.muted;
+  ctx.font = `9px ${MONO}`;
+  ctx.fillText(
+    `LAST ${stats.frameHistory.length}/120 INTERVALS · H HIDE`,
+    left,
+    y + 33,
+  );
+
+  ctx.fillStyle = COLORS.grid;
+  ctx.fillRect(left, plotTop, plotWidth, plotHeight);
+  const barWidth = plotWidth / 120;
+  for (const [index, interval] of stats.frameHistory.entries()) {
+    const barHeight = Math.min(interval / chartMaxMs, 1) * plotHeight;
+    ctx.fillStyle = interval > 1000 / 60 ? "#ff7373" : COLORS.muted;
+    ctx.fillRect(
+      left + (120 - stats.frameHistory.length + index) * barWidth,
+      plotTop + plotHeight - barHeight,
+      Math.max(1, barWidth - 0.5),
+      barHeight,
+    );
+  }
+  const referenceY = plotTop + plotHeight * (1 - 1000 / 60 / chartMaxMs);
+  ctx.strokeStyle = COLORS.orange;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(left, referenceY);
+  ctx.lineTo(left + plotWidth, referenceY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = COLORS.muted;
+  ctx.fillText("16.7 ms REF · SCALE 0–50 ms (CLIPPED)", left, y + 108);
+
+  const columns = [
+    ["MEAN ms", stats.meanFrameMs],
+    ["P95 ms", stats.p95FrameMs],
+    ["MAX ms", stats.maxFrameMs],
+  ];
+  for (const [index, [label, value]] of columns.entries()) {
+    const columnX = left + (index * plotWidth) / 3;
+    ctx.font = `9px ${MONO}`;
+    ctx.fillStyle = COLORS.muted;
+    ctx.fillText(label, columnX, y + 126);
+    ctx.font = `12px ${MONO}`;
+    ctx.fillStyle = COLORS.pale;
+    ctx.fillText(
+      stats.frameHistory.length ? value.toFixed(1) : "—",
+      columnX,
+      y + 142,
+    );
+  }
+
+  const rows = [
+    ["STEPS / FRAME", `${stats.stepsThisFrame}`],
+    ["SIM CLOCK", `${stats.simulationSeconds.toFixed(2)} s`],
+    ["TOTAL TICKS", `${stats.totalSteps}`],
+    ["CLAMP LOST", `${(stats.discardedMs / 1000).toFixed(3)} s`],
+  ];
+  ctx.font = `10px ${MONO}`;
+  for (const [index, [label, value]] of rows.entries()) {
+    ctx.fillStyle = COLORS.muted;
+    ctx.fillText(label, left, y + 164 + index * 18);
+    ctx.fillStyle = COLORS.pale;
+    ctx.fillText(value, left + 135, y + 164 + index * 18);
+  }
+  ctx.fillStyle = COLORS.marking;
+  ctx.fillRect(left, y + 234, plotWidth, 3);
+  ctx.fillStyle = COLORS.orange;
+  ctx.fillRect(left, y + 234, plotWidth * alpha, 3);
+  ctx.fillStyle = COLORS.muted;
+  ctx.font = `9px ${MONO}`;
+  ctx.fillText(
+    `α ${alpha.toFixed(2)} · TOTALS SINCE LOOP START`,
+    left,
+    y + 254,
+  );
+}
+
+export function drawHud(
+  ctx,
+  stats,
+  { width, height },
+  alpha = 0,
+  showTelemetry = false,
+) {
   const inset = width < 500 ? 20 : 32;
   ctx.save();
   ctx.fillStyle = "rgba(16, 28, 39, 0.93)";
@@ -146,7 +240,20 @@ export function drawHud(ctx, stats, { width, height }, alpha = 0) {
   }
 
   // This is the real accumulator remainder, not a decorative progress meter.
-  if (width >= 720) {
+  const telemetryFits =
+    width >= 300 && (width >= 900 ? height >= 390 : height >= 540);
+  const expanded = showTelemetry && telemetryFits;
+  if (expanded) {
+    const panelWidth = Math.min(320, width - 2 * inset);
+    drawTelemetry(
+      ctx,
+      stats,
+      width >= 900 ? width - inset - panelWidth : inset,
+      width >= 900 ? inset : 178,
+      panelWidth,
+      alpha,
+    );
+  } else if (width >= 720) {
     const x = width - inset - 200;
     ctx.fillStyle = COLORS.muted;
     ctx.font = `10px ${MONO}`;
@@ -159,11 +266,11 @@ export function drawHud(ctx, stats, { width, height }, alpha = 0) {
     ctx.fillText(`α ${alpha.toFixed(2)}  ·  FIXED 1/60 s`, x, inset + 44);
   }
 
-  const compact = width < 600;
+  const compact = width < 900;
   const lines = compact
-    ? ["W / ↑ THRUST   A D / ← → YAW", "R RESET   ·   EDGES WRAP"]
+    ? ["W / ↑ THRUST   A D / ← → YAW", "R RESET  ·  H METRICS  ·  WRAP"]
     : [
-        "W / ↑  THRUST      A D / ← →  YAW      R  RESET      ·      EDGES WRAP",
+        "W / ↑ THRUST    A D / ← → YAW    R RESET    H METRICS    ·    EDGES WRAP",
       ];
   ctx.fillStyle = "rgba(16, 28, 39, 0.93)";
   ctx.fillRect(
