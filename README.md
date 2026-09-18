@@ -157,8 +157,10 @@ async function arm() {
 log("boot"); arm(); log("continue");
 ```
 
-Predicted: `boot, arm, continue, armed`  
-Observed: `boot, arm, continue, armed`  
+Predicted: `boot, arm, continue, armed`
+
+Observed: `boot, arm, continue, armed`
+
 `arm` runs synchronously until `await`; its continuation is a microtask.
 
 ### 2. A timer created inside a chained reaction
@@ -172,8 +174,10 @@ queueMicrotask(() => log("manual-micro"));
 log("clear");
 ```
 
-Predicted: `dock, clear, micro-1, manual-micro, micro-2, timer-in-then`  
-Observed: `dock, clear, micro-1, manual-micro, micro-2, timer-in-then`  
+Predicted: `dock, clear, micro-1, manual-micro, micro-2, timer-in-then`
+
+Observed: `dock, clear, micro-1, manual-micro, micro-2, timer-in-then`
+
 The first reaction queues the second reaction behind the already queued manual microtask; the new timer waits for a later task.
 
 ### 3. Animation frame and its microtask
@@ -188,8 +192,10 @@ Promise.resolve().then(() => log("microtask"));
 log("scheduled");
 ```
 
-Predicted for this fresh Chromium task: `scheduled, microtask, timer, animation-frame, frame-microtask`  
-Observed: `scheduled, microtask, timer, animation-frame, frame-microtask`  
+Predicted for this fresh Chromium task: `scheduled, microtask, timer, animation-frame, frame-microtask`
+
+Observed: `scheduled, microtask, timer, animation-frame, frame-microtask`
+
 The normal microtask drains first; Chromium ran the due timer task before the next rendering opportunity, and the promise created inside `requestAnimationFrame` ran before returning from that rendering checkpoint. Timer-versus-frame ordering is host timing dependent, so only the measured environment is claimed.
 
 ### 4. Rejection recovery
@@ -204,8 +210,10 @@ Promise.resolve()
 log("sync");
 ```
 
-Predicted: `sync, caught, finally, recovered`  
-Observed: `sync, caught, finally, recovered`  
+Predicted: `sync, caught, finally, recovered`
+
+Observed: `sync, caught, finally, recovered`
+
 The throw rejects the next promise, skips the fulfillment handler, and the catch converts the chain back to fulfillment.
 
 ### 5. `Promise.all` fails fast but does not cancel
@@ -220,8 +228,10 @@ queueMicrotask(() => log("queued-microtask"));
 log("sync");
 ```
 
-Predicted: `sync, queued-microtask, all-rejected, slow-settled`  
-Observed: `sync, queued-microtask, all-rejected, slow-settled`  
+Predicted: `sync, queued-microtask, all-rejected, slow-settled`
+
+Observed: `sync, queued-microtask, all-rejected, slow-settled`
+
 The aggregate rejection is delivered through another promise reaction; the already-started timer still completes because promises do not cancel one another.
 
 ## Failure gallery
