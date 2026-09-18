@@ -25,14 +25,27 @@ const fire = () => world.firePlayerWeapon();
 
 function simulate(dt) {
   if (input.justPressed("KeyR")) reset();
+  const turnRight =
+    input.isDown("KeyD") ||
+    input.isDown("ArrowRight") ||
+    input.justPressed("KeyD") ||
+    input.justPressed("ArrowRight");
+  const turnLeft =
+    input.isDown("KeyA") ||
+    input.isDown("ArrowLeft") ||
+    input.justPressed("KeyA") ||
+    input.justPressed("ArrowLeft");
+  const thrust =
+    input.isDown("KeyW") ||
+    input.isDown("ArrowUp") ||
+    input.justPressed("KeyW") ||
+    input.justPressed("ArrowUp");
   world.step(
     dt,
     {
-      turn:
-        Number(input.isDown("KeyD") || input.isDown("ArrowRight")) -
-        Number(input.isDown("KeyA") || input.isDown("ArrowLeft")),
-      thrust: input.isDown("KeyW") || input.isDown("ArrowUp"),
-      fire: input.isDown("Space"),
+      turn: Number(turnRight) - Number(turnLeft),
+      thrust,
+      fire: input.isDown("Space") || input.justPressed("Space"),
     },
     fire,
   );

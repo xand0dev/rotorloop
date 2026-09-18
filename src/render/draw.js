@@ -247,7 +247,11 @@ export function drawWorld(ctx, world, alpha, { reducedMotion = false } = {}) {
     if (!entity.alive) continue;
     const visual = interpolateEntity(entity, alpha);
     if (entity.kind === "ship") {
-      drawShip(ctx, { ...entity, ...visual }, { reducedMotion });
+      drawShip(
+        ctx,
+        { ...entity, ...visual, rapidFire: entity.rapidFire },
+        { reducedMotion },
+      );
     } else if (entity.kind === "bullet") {
       drawBullet(ctx, entity, visual);
     } else if (entity.kind === "asteroid") {
