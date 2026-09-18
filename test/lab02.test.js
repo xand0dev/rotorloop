@@ -104,6 +104,32 @@ test("circle system emits unique pairs and a dead bullet cannot damage twice", (
   assert.equal(world.score, 100);
 });
 
+test("hostile bullets damage ships while a ship cannot hit itself", () => {
+  const world = new World({ width: 400, height: 300 });
+  const ship = world.spawn(new Ship(100, 100));
+  const ownBullet = world.spawn(
+    new Bullet({
+      pos: new Vector2(100, 100),
+      vel: new Vector2(),
+      ownerId: ship.id,
+    }),
+  );
+  world.step(0);
+  assert.equal(ship.hp, ship.maxHp);
+  assert.equal(world.get(ownBullet.id), ownBullet);
+
+  const hostileBullet = world.spawn(
+    new Bullet({
+      pos: new Vector2(100, 100),
+      vel: new Vector2(),
+      ownerId: -1,
+    }),
+  );
+  world.step(0);
+  assert.equal(ship.hp, ship.maxHp - hostileBullet.damage);
+  assert.equal(world.get(hostileBullet.id), undefined);
+});
+
 test("private HP changes only through public behavior", () => {
   const ship = new Ship();
   assert.equal(Object.hasOwn(ship, "hp"), false);

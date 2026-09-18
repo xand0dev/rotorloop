@@ -6,17 +6,39 @@ Fly a quadcopter through a live Canvas arena, launch rate-limited homing rounds,
 
 [Play the latest build](https://xand0dev.github.io/rotorloop/) · [Frozen Lab 01](https://xand0dev.github.io/rotorloop/lab-01/) · [Frozen Lab 02](https://xand0dev.github.io/rotorloop/lab-02/) · [Choose a release](https://xand0dev.github.io/rotorloop/versions/)
 
-## Run
+## Run the two lab demos separately
 
 Use Node 24 (`.nvmrc`; validated with the version declared there).
 
+Clone the repository once, enter it, and create two detached tagged snapshots:
+
 ```sh
 nvm use
-npm ci
-npm run dev
+git worktree add --detach ../RotorLoop-lab-01 lab-01
+git worktree add --detach ../RotorLoop-lab-02 lab-02
 ```
 
-Open the local URL printed by Vite. `npm run build` creates `dist/`; `npm run preview` serves that build. The game has no backend or runtime dependency.
+### Demo Lab 01 — fixed game loop
+
+```sh
+npm ci --prefix ../RotorLoop-lab-01
+npm run --prefix ../RotorLoop-lab-01 dev -- --port 5171
+```
+
+Open [http://127.0.0.1:5171/](http://127.0.0.1:5171/). This worktree is frozen at `lab-01`; do not develop or commit inside it.
+
+### Demo Lab 02 — entity model
+
+In a second terminal:
+
+```sh
+npm ci --prefix ../RotorLoop-lab-02
+npm run --prefix ../RotorLoop-lab-02 dev -- --port 5172
+```
+
+Open [http://127.0.0.1:5172/](http://127.0.0.1:5172/). Both demos can run simultaneously. This worktree is frozen at `lab-02`; normal development stays on `main`.
+
+For only the latest development build, run `npm ci` and `npm run dev` in the repository root. `npm run build` creates `dist/`; `npm run preview` serves it. The game has no backend or runtime dependency.
 
 | Key | Action |
 | --- | --- |

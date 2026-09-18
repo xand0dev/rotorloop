@@ -132,6 +132,17 @@ export class World {
       }
       return;
     }
+    if (kinds.has("bullet") && kinds.has("ship")) {
+      const bullet = a instanceof Bullet ? a : b;
+      const ship = a instanceof Ship ? a : b;
+      if (bullet.ownerId === ship.id) return;
+      this.despawn(bullet.id);
+      if (ship.damage(bullet.damage)) {
+        this.#explode(bullet.pos, "#ff6577");
+        if (ship.hp === 0) this.#destroyShip(ship);
+      }
+      return;
+    }
     if (kinds.has("ship") && kinds.has("pickup")) {
       const ship = a instanceof Ship ? a : b;
       const pickup = a instanceof Pickup ? a : b;
