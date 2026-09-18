@@ -4,17 +4,9 @@ Fly a quadcopter. See the difference between a simulation tick and a rendered fr
 
 **Lab 01 · JavaScript · Canvas 2D · fixed 60 Hz simulation**
 
-[Український звіт](docs/report.uk.md) · [Підготовка до захисту](docs/defense.md) · [Raw measurements](docs/evidence/RESULTS.md) · [Research & requirement matrix](docs/research.md)
+[Raw measurements and reproduction notes](docs/evidence/RESULTS.md)
 
 ![RotorLoop running in Chrome](docs/evidence/production.png)
-
-## Start here: a 90-second review
-
-1. **0–25 s:** fly with W and A/D; cross an edge. Watch SIM and DISPLAY count different work.
-2. **25–40 s:** hold R, then add W while still holding R. Reset happens once; flight continues. Lose focus and return: no stuck thrust.
-3. **40–55 s:** press H to compare the compact HUD and telemetry. Explain the interval strip, steps/frame and live α: a render callback can execute zero or several simulation ticks.
-4. **55–70 s:** open [loop.js](src/loop.js). Find the clamp, fixed-step while loop and alpha. The entire production scheduler fits in one small module.
-5. **70–90 s:** compare the measurements below. Explain why p95 misses the busy-wait and why genuine CPU 6× barely changed this scene's FPS.
 
 ## Run
 
@@ -94,11 +86,11 @@ The [course roadmap](https://github.com/rmalkevy/Programming-Practice-Projects/b
 
 The pure simulation is reusable in Node. Future work must give every player the same server-owned arena dimensions (today bounds follow the local Canvas), sequence input commands by tick, and run the authoritative clock on the server. Fixed stepping is a foundation for that work, not a networking implementation.
 
-## Decisions worth asking about
+## Engineering decisions
 
 | Problem | Chosen solution | Tradeoff / proof |
 | --- | --- | --- |
-| Repeated start or restart inside a callback | Idempotent lifecycle plus run generation token | A reviewer reproduced two pending rAF callbacks before the fix; regression tests cover render and simulate restart |
+| Repeated start or restart inside a callback | Idempotent lifecycle plus run generation token | Regression tests cover restart from both render and simulate |
 | +179° to −179° | Shortest signed angular difference | Midpoint follows the 2° path; frozen-snapshot renderer test |
 | Right edge → left edge | Synchronize the crossed previous coordinate | Avoids a cross-arena streak; sacrifices interpolation for one tick on that axis |
 | Retina / monitor changes | CSS world, DPR backing store, absolute setTransform | Resize and DPR-only browser checks; density fallback performs no layout read on ordinary frames |
@@ -168,9 +160,7 @@ CPU 6× kept this lightweight scene near 120 callbacks/s. That is why its measur
 - Canvas draws locally with save/translate/rotate/restore. Physics is in CSS pixels; DPR is a backing-resolution concern.
 - Repeatability requires the same state, per-tick inputs, math and tick count. Fixed dt does not alone guarantee universal cross-platform lockstep.
 
-The [Ukrainian defense notes](docs/defense.md) answer all eight Reflection questions with code-specific examples. [Research notes](docs/research.md) link the primary sources and full requirement matrix.
-
-## Validation and review
+## Validation
 
 ```sh
 npm run check
@@ -182,7 +172,7 @@ Original `lab-01` validation on Node 24.20.0: **16 tests passed**, Biome clean, 
 
 The telemetry extension passed **all 19 tests**, Biome and the production build on Node 24.20.0, including bounded history, summary math, raw stalls, first-frame exclusion and restart cleanup. Its separate [browser smoke](docs/evidence/telemetry-smoke.json) records functional checks, not monitor benchmarks; see the [method and reproduction command](docs/evidence/telemetry-method.md).
 
-[Independent review and fixes](docs/review.md) · [Browser evidence](docs/evidence/browser-smoke.json)
+[Browser evidence](docs/evidence/browser-smoke.json)
 
 ## Lab checklist
 
@@ -192,8 +182,8 @@ The telemetry extension passed **all 19 tests**, Biome and the production build 
 - [x] Pure ship integration, rotation, thrust, drag, speed clamp and wrap
 - [x] Previous/current interpolation, short angle path, DPR and resizing
 - [x] Three measured experiments and event-loop explanations
-- [x] English README, Ukrainian report and all Reflection answers
-- [x] Unit tests, browser evidence and independent review
+- [x] English README with measured experiment results and limitations
+- [x] Unit tests and browser evidence
 - [x] Optional last-120 frame-time strip with explanatory telemetry
 
 `lab-01` preserves the original validated submission at `0f134a2`. The later telemetry extension is on `main`; the published tag is not silently moved. Inspect either snapshot with `git show lab-01 --stat` or `git show HEAD --stat`.
