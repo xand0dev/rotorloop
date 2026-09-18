@@ -1,166 +1,152 @@
-# RotorLoop — FPV Drone Arena
+# RotorLoop — Entity Arena
 
-Fly a quadcopter. See the difference between a simulation tick and a rendered frame.
+Fly a quadcopter through a live Canvas arena, launch rate-limited homing rounds, collect field modules, break asteroids, and survive the two-second recovery cycle.
 
-**Lab 01 · JavaScript · Canvas 2D · fixed 60 Hz simulation**
+**Lab 02 · JavaScript objects and classes · Canvas 2D · fixed 60 Hz simulation**
 
-[Raw measurements and reproduction notes](docs/evidence/RESULTS.md)
-
-[Play the latest build](https://xand0dev.github.io/rotorloop/) · [Open the frozen Lab 01 build](https://xand0dev.github.io/rotorloop/lab-01/) · [Choose a tagged lab](https://xand0dev.github.io/rotorloop/versions/)
-
-![RotorLoop running in Chrome](docs/evidence/production.png)
+[Play the latest build](https://xand0dev.github.io/rotorloop/) · [Frozen Lab 01](https://xand0dev.github.io/rotorloop/lab-01/) · [Frozen Lab 02](https://xand0dev.github.io/rotorloop/lab-02/) · [Choose a release](https://xand0dev.github.io/rotorloop/versions/)
 
 ## Run
 
-Use Node 24 (`.nvmrc`; validated on 24.20.0).
+Use Node 24 (`.nvmrc`; validated with the version declared there).
 
 ```sh
-nvm install
 nvm use
 npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite. Without nvm, use any existing Node 24 installation. `npm run build` creates `dist/`; `npm run preview` serves that build. No backend or account is needed to play.
+Open the local URL printed by Vite. `npm run build` creates `dist/`; `npm run preview` serves that build. The game has no backend or runtime dependency.
 
 | Key | Action |
 | --- | --- |
-| W / ↑ | Arcade forward thrust |
+| W / ↑ | Forward thrust |
 | A / ←, D / → | Yaw left / right |
-| R | Reset once per press |
-| H | Toggle loop telemetry; flight continues |
+| Space | Fire; holding it uses a deliberate cooldown |
+| R | Reset arena once per press |
+| H | Toggle loop telemetry |
 
-Click the arena to focus. Keyboard controls require a keyboard; the layout resizes to narrow viewports but does not implement the optional touch/gamepad stretch tasks.
+Click the arena to focus. Blur and hidden-page handlers clear held input so a lost `keyup` cannot leave the ship moving or firing.
 
-## What is deliberately small
+## What Lab 02 adds
 
-The drone is a Canvas X-frame with four motors, an orange nose camera and a rear thrust wash. The landing ring and grid make motion legible. This is a 2D arcade model, not a six-degree-of-freedom FPV simulator: actual multicopter throttle is not forward translation. No fake battery or radio statistics are shown.
+- `Vector2` with non-mutating vector operations.
+- An `Entity` base class and `Ship extends Entity`; every concrete entity is only one prototype step below `Entity`.
+- A `Map<number, Entity>` world with generator-based filtering and deferred removal.
+- Bullets with TTL, bouncing asteroids, two data-driven pickups, particle explosions, score, private ship HP, damage feedback, and safe respawn after exactly two seconds of simulation time.
+- The same homing behavior attached to bullets and an asteroid without a `HomingEntity` subclass.
+- A separate circle-collision pass. Its intentionally simple O(n²) broad phase can be replaced without changing entity classes.
 
-There are no runtime libraries, generated image assets, frameworks or physics engines. Vite and Biome are pinned development dependencies. Lab 02–08 features are intentionally absent.
+The visual language still comes from the Lab 01 FPV training field: dark survey grid, landing ring, pale aircraft frame, and orange camera marker. Lab 02 adds cyan modules and guided rounds, a red hunter marker, hit flashes, particles, hull/score/weapon readouts, and a central respawn status. These signals explain game state without covering the arena.
 
-## Two clocks, one simulation
+## Architecture and lifecycle
 
 ```text
-keyboard events → private input Sets
-                         ↓
-rAF timestamp → accumulator → simulate(1/60), zero or more times
-                         ↓
-                  previous / current
-                         ↓ alpha
-               interpolated Canvas frame
+keyboard state                 Canvas renderer (read-only)
+      │                                  ▲
+      ▼                                  │ interpolated previous/current
+fixed-step loop ── controls ──► World ───┘
+                              │
+             Map<id, Entity> ├─ update snapshot
+                              ├─ circle-pair collisions
+             Set<id> pending └─ end-of-step sweep
 ```
 
-| Boundary | Responsibility |
+| Module | Responsibility |
 | --- | --- |
-| [main.js](src/main.js) | Connect input, snapshots, reset, arena and rendering; clean up hot reload |
-| [loop.js](src/loop.js) | rAF ownership, start/stop, clamp, accumulator and measured statistics |
-| [telemetry.js](src/telemetry.js) | Bounded interval history, distribution summaries and simulation totals |
-| [input.js](src/input.js) | Closure state; held vs consuming press edges; repeat/focus cleanup |
-| [sim](src/sim) | Immutable plain-data ship integration and arena math, without DOM or Canvas |
-| [render](src/render) | Canvas transforms, CSS-pixel/DPR boundary, interpolation and drawing |
+| [`src/sim/vector.js`](src/sim/vector.js) | Pure `Vector2`; every operation returns a new vector. |
+| [`src/sim/entity.js`](src/sim/entity.js) | Unique private-static ID source and common position, velocity, angle, radius, `alive`, and `update(dt)` contract. |
+| [`src/sim/ship.js`](src/sim/ship.js) | `Ship extends Entity`, private `#hp`, motion, weapon cooldown, damage, power-up, and respawn behavior. |
+| [`src/sim/entities.js`](src/sim/entities.js) | Bullet, asteroid, pickup, and explosion rules. |
+| [`src/sim/behaviors.js`](src/sim/behaviors.js) | Homing and pickup application as composition. |
+| [`src/sim/collision.js`](src/sim/collision.js) | Pure circle overlap and unique-pair generator. |
+| [`src/sim/world.js`](src/sim/world.js) | `Map` ownership, spawn/despawn, update order, collision effects, score, and respawn scheduling. |
+| [`src/loop.js`](src/loop.js) | Preserved clamped accumulator, fixed 1/60 s ticks, interpolation alpha, and telemetry. |
+| [`src/render`](src/render) | DPR-safe Canvas surface and rendering; it never advances simulation. |
 
-`createLoop({ step = 1/60, simulate, render })` returns `start`, `stop`, `getStats`. `integrate(ship, { turn, thrust }, dt)` returns a new `{ x, y, vx, vy, angle, thrust }`. Rendering never advances physics.
+An entity is spawned into the `Map`, copied into the current step's update snapshot, updated, collision-tested, and finally swept if its ID is in the pending-removal `Set`. Spawning an explosion during collision handling is safe: it appears immediately for rendering but does not update until the next tick. A despawned bullet remains in the collision generator's captured candidate list, so the resolver also checks `alive`; one dead bullet cannot damage two overlapping targets.
 
-SIM and DISPLAY divide actual counts by elapsed time; FRAME is the latest callback interval, **not drawing CPU time**. DISPLAY counts render callbacks, not independently verified physical presentations. The alpha strip shows the actual accumulator fraction.
+The ship follows a separate recovery transition:
 
-The incoming frame delta is capped at 0.25 s. Whole fixed steps consume the accumulator; the fractional remainder becomes alpha. Near 60 steps/s is the normal-load target. Hidden tabs and discarded time cannot be promised 60 steps per wall second. Interpolation adds approximately one simulation tick of presentation delay.
+```text
+active ── hp reaches 0 ──► removed + explosion
+  ▲                              │
+  └── safe position + full HP ◄──┘ 2.0 simulated seconds
+```
 
-## Read the telemetry
+Safe-position candidates are rejected when an asteroid is within the combined radii plus an 80 px margin. Random selection is injected, so tests stay deterministic.
 
-The optional Lab 01 frame-time strip is implemented as a chronological history of the last **120 measured intervals**. H toggles its panel; it starts open on desktop and closed on narrow screens. Very short layouts retain the compact HUD. Collection continues when hidden. R resets the drone, while telemetry totals persist until the loop restarts.
+## Prototype delegation, not copied methods
 
-| Metric | What it lets you explain |
-| --- | --- |
-| Interval strip | Uneven pacing that an average FPS can hide. Red means above the **16.7 ms reference**, not a measured dropped frame. Bars clip at 50 ms; numeric summaries retain raw values. |
-| Mean / p95 / maximum | The mean describes the window; p95 is the nearest-rank 95th percentile; maximum catches rare stalls p95 may miss. |
-| Steps / frame | Zero or multiple fixed ticks within one render callback; rendering and simulation have different clocks. |
-| Sim clock / total ticks | Simulated seconds = completed ticks × 1/60; this need not equal elapsed wall time. |
-| Clamp lost | Cumulative elapsed time discarded above 250 ms per interval, in seconds. It is not input latency or a dropped-frame count. |
-| Alpha | The actual remaining fraction of a tick used for interpolation. |
+For `const ship = new Ship()`, the relevant lookup chain is:
 
-The first callback establishes the time origin and adds no artificial zero sample. History updates each callback; mean/p95/max refresh after approximately 250 ms of accumulated intervals, so the numbers can briefly lag the moving strip. History covers roughly two seconds at 60 callbacks/s and one at 120, **not a fixed duration**. Storage is bounded and sorting happens only on summary updates.
+```text
+ship ──► Ship.prototype ──► Entity.prototype ──► Object.prototype ──► null
+           fire(), hp          update(), x/y
+```
 
-The three experiments below retain their recorded baseline revisions; they are not benchmarks of the expanded HUD.
+`fire` and `update` are not own properties copied into each instance. `ship.fire` first checks `ship`, then finds one shared function on `Ship.prototype`. `Object.hasOwn(ship, "update")` is false, while `ship instanceof Entity` is true. Private `#hp` is internal class state; public code can only read `ship.hp` and change it through `damage`, `heal`, or `prepareRespawn`.
 
-## Where multiplayer enters the course
+All entity subclasses point directly to `Entity.prototype`. There is no `MovingEntity`, `DamageableEntity`, or deeper chain.
 
-The [course roadmap](https://github.com/rmalkevy/Programming-Practice-Projects/blob/main/courses/javascript/README.md) introduces a Node.js/WebSocket server and rooms in **Lab 04**, authoritative state with prediction/reconciliation and binary snapshots in **Lab 05**, then public deployment in **Lab 08**. Vite currently serves development files; it is not a multiplayer game server.
+## The detached `this` failure
 
-The pure simulation is reusable in Node. Future work must give every player the same server-owned arena dimensions (today bounds follow the local Canvas), sequence input commands by tick, and run the authoritative clock on the server. Fixed stepping is a foundation for that work, not a networking implementation.
+Methods are functions, and `this` is chosen by the call site. This deliberately failing test captures the bug:
 
-## Engineering decisions
+```js
+const ship = new Ship();
+const detached = ship.fire;
+detached(); // TypeError: `this` is undefined in an ES module
+```
 
-| Problem | Chosen solution | Tradeoff / proof |
+Production uses a wrapper arrow created once in `main.js`:
+
+```js
+const fire = () => world.firePlayerWeapon();
+```
+
+The wrapper closes over `world`, and `World#firePlayerWeapon` calls `this.player.fire()` with both receivers intact. It also lets the fixed-step loop poll held Space and apply the ship's cooldown instead of depending on keyboard-repeat timing.
+
+Three valid fixes have different costs:
+
+| Fix | Strength | Trade-off |
 | --- | --- | --- |
-| Repeated start or restart inside a callback | Idempotent lifecycle plus run generation token | Regression tests cover restart from both render and simulate |
-| +179° to −179° | Shortest signed angular difference | Midpoint follows the 2° path; frozen-snapshot renderer test |
-| Right edge → left edge | Synchronize the crossed previous coordinate | Avoids a cross-arena streak; sacrifices interpolation for one tick on that axis |
-| Retina / monitor changes | CSS world, DPR backing store, absolute setTransform | Resize and DPR-only browser checks; density fallback performs no layout read on ordinary frames |
-| Lost keyup after focus change | Clear private input Sets on blur/hidden | Browser and unit checks; R consumes one edge, not keyboard repeat |
-| “Same position after five seconds” | Record both clocks, then compare exactly 300 fixed ticks | Separates scheduler endpoints from integration sensitivity |
+| `() => ship.fire()` | Explicit receiver and easy to add arguments; selected here | Keep the wrapper reference if a listener must later be removed. |
+| `ship.fire.bind(ship)` | Produces a reusable permanently bound function | Creates another function; the exact bound reference is required for listener cleanup. |
+| `fire = () => { ... }` class field | Safe to pass directly and concise at the call site | Allocates one function per instance instead of sharing it on the prototype. |
 
-## Physics tuning
+The four binding rules, in precedence order, are `new`, explicit (`call`/`apply`/`bind`), implicit (`object.method()`), and default. Arrows are the exception: they capture the surrounding `this` and ignore rebinding.
 
-Update order: yaw → acceleration along heading → exponential drag → speed clamp → position using the updated velocity (semi-implicit Euler).
+## Why the world uses `Map`
 
-| Constant | Final value | Reason |
-| --- | ---: | --- |
-| TURN_RATE | 3 rad/s | A full yaw turn takes about 2.09 s; easy to steer with short taps |
-| THRUST_ACCELERATION | 480 CSS px/s² | Builds visible speed without teleporting on input |
-| DRAG | 1.2 s⁻¹ | Velocity halves in about 0.58 s when coasting; drift remains visible |
-| MAX_SPEED | 340 CSS px/s | At 60 Hz, movement stays below 5.67 px per tick |
+IDs stay numeric instead of becoming object-property strings; `.size`, ordered iteration, and `delete` are native; and names inherited from `Object.prototype` cannot collide with entity keys. Frequent spawn/despawn is also the operation `Map` is designed to express. A `Set` represents pending removals because an ID is either scheduled once or not scheduled, and duplicate requests need no special handling.
 
-The planned constants were retained after the actual keyboard smoke: thrust, yaw, coast, reset and wrapping behaved coherently. No unsupported claim of extensive human playtesting is made. Exponential damping is time-based; the complete acceleration/position integrator still has numerical timestep error.
+`World` is itself iterable, while `world.ofKind(kind)` is a generator. The generator yields matches lazily rather than allocating an array every time homing searches for a target.
 
-## Experiment 1 — block the main thread
+## Composition instead of a class maze
 
-| Run | Callbacks/s | Mean ms | SD ms | p95 ms | p99 ms | Max ms |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| rAF baseline | 120.01 | 8.333 | 0.355 | 9.10 | 9.30 | 10.30 |
-| 100 ms block / 60 renders | 101.79 | 9.825 | 11.797 | 9.30 | 100.30 | 100.50 |
+An inheritance-first design would need capabilities in incompatible places:
 
-![Measured frame intervals](docs/evidence/frame-times.svg)
+```text
+Entity
+├─ MovingEntity
+│  ├─ HomingBullet
+│  ├─ HomingAsteroid
+│  └─ Ship
+└─ CollectibleEntity
+   ├─ ShieldPickup
+   └─ RapidFirePickup
+```
 
-A once-per-60-frame busy-wait barely moves p95; it dramatically moves p99 and maximum. Main-thread callbacks run to completion: promises, timers and more rAF requests cannot preempt this work. Input callback delay is expected from that mechanism; it was not separately latency-timed. Production contains no busy-wait.
+Moving homing logic upward would make unrelated movers target-aware; duplicating `HomingBullet` and `HomingAsteroid` would copy logic; multiple inheritance is unavailable. Making pickups subclasses of `Ship` would falsely give them HP, controls, and weapons.
 
-The final HUD sampling window also reacted: baseline **SIM 59.506, DISPLAY 120.004, FRAME 8.3 ms**; blocked **SIM 60, DISPLAY 98, FRAME 99.9 ms**. These short-window readings differ from the full-run averages above. Catch-up preserved the normal simulation cadence while rendering stalled.
+RotorLoop instead gives either moving entity a small `homing: { targetKind, turnRate }` field. `applyHoming(entity, world, dt)` operates on that capability. Pickups are stationary entities with a `pickup` data object such as `{ effect: "shield", amount: 35 }`; `applyPickup` interprets it. This is deliberately lighter than an ECS: class identity still expresses the five entity types, while cross-cutting features are explicit data and functions. The same approach will serialize more cleanly when networking arrives in a later lab.
 
-## Experiment 2 — setInterval versus rAF
+## Preserved Lab 01 timing contract
 
-| Run | Callbacks/s | Mean ms | SD ms | p95 ms | p99 ms | Max ms |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| rAF foreground | 120.01 | 8.333 | 0.355 | 9.10 | 9.30 | 10.30 |
-| setInterval(16) foreground | 62.50 | 16.000 | 0.664 | 17.10 | 17.30 | 17.50 |
+`requestAnimationFrame` owns scheduling, but simulation advances only in whole 1/60 s steps. Frame delta is capped at 0.25 s, the accumulator can run zero or multiple ticks per rendered frame, and its remainder becomes interpolation alpha. The first callback establishes the time origin. The existing restart-generation guard, bounded 120-interval telemetry, shortest-angle interpolation, resize/DPR handling, and wrap synchronization remain covered by regression tests.
 
-During real ~5-second hidden-tab runs, rAF's largest interval was **5032.9 ms**; the timer's was **1000.3 ms**. This Chrome paused rAF and throttled timers. A timer is not aligned to rendering opportunities; 16 ms requests 62.5 callbacks/s, not exactly 60. rAF adapts to the observed display cadence.
-
-## Experiment 3 — variable versus fixed timestep
-
-Real Chrome DevTools CPU throttling, reproducible thrust, five-second wall-time runs:
-
-| Run | Final x | Final y | Steps | Simulated s | Wall s |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| variable wall-time CPU 1x | 1614.301372 | 300.000000 | 601 | 5.009200 | 5.007300 |
-| variable wall-time CPU 6x | 1613.789824 | 300.000000 | 597 | 5.007600 | 5.001300 |
-| fixed wall-time CPU 1x | 1610.784130 | 300.000000 | 300 | 5.000000 | 5.004100 |
-| fixed wall-time CPU 6x | 1610.784130 | 300.000000 | 300 | 5.000000 | 5.004000 |
-
-Variable normal/throttled distance: **0.511548 px**; fixed: **0.000000 px**. The wall-time endpoints differ slightly, so this alone is not a clean numerical comparison.
-
-At **exactly five simulated seconds**, variable normal/throttled x was **1611.173389 / 1611.217935**, a **0.044546 px** difference. Fixed x was **1610.784130** in both runs after **300 ticks**. All y values were 300.
-
-CPU 6× kept this lightweight scene near 120 callbacks/s. That is why its measured divergence was small. A separately labeled **35 ms render-work probe** reduced cadence to about 28.45 callbacks/s: variable x changed by **1.424528 px** relative to the normal exact-time run; fixed changed by **0.000000 px**. The probe is not presented as a DevTools result.
-
-[Full tables, environment, raw samples and repeat procedure](docs/evidence/RESULTS.md). Experiments use isolated worktrees; only evidence and documentation enter production.
-
-## JavaScript concepts demonstrated
-
-- Tasks and microtasks: synchronous logs, Promise reactions and timers produce `1, 4, 3, 2`; a microtask chain can starve rendering.
-- rAF participates in browser rendering updates before repaint; it is neither a timer task nor a microtask.
-- ESM provides explicit dependencies, module scope, strict mode, live bindings and deferred module scripts; top-level `this` is undefined.
-- Closures retain access to the private input Sets. `const` protects the binding, not the Set's contents; `let` is used only for reassignment.
-- Canvas draws locally with save/translate/rotate/restore. Physics is in CSS pixels; DPR is a backing-resolution concern.
-- Repeatability requires the same state, per-tick inputs, math and tick count. Fixed dt does not alone guarantee universal cross-platform lockstep.
+Rendering reads current and previous state only. It does not mutate physics. `prefers-reduced-motion` reduces particle count and disables pickup pulsing while leaving gameplay unchanged.
 
 ## Validation
 
@@ -170,20 +156,21 @@ npm test
 npm run build
 ```
 
-The `lab-01` release passed **all 19 tests**, Biome and the production build on Node 24.20.0. Coverage includes controlled 60/120 Hz timestamps, lifecycle restart safety, bounded telemetry history, pure integration, wrap/interpolation, input cleanup and DPR changes. Browser checks cover thrust/yaw, reset, wrapping, focus loss, resize, DPR 1/2 and console errors. Synthetic scheduler tests are labeled tests, not hardware evidence. The separate [telemetry browser smoke](docs/evidence/telemetry-smoke.json) is a functional check rather than a monitor benchmark; see the [method and reproduction command](docs/evidence/telemetry-method.md).
+The suite covers every `Vector2` operation, zero normalization, unique IDs and prototype relationships, world iteration/generators/deferred sweep, bullet origin/velocity/TTL/rate limiting, collision pairs and dead-bullet guarding, private HP through its public API, two-second respawn, homing on two entity kinds, pickup application, the detached-method failure and wrapper fix, plus all relevant Lab 01 loop, interpolation, input, telemetry, and DPR behavior.
 
-[Browser evidence](docs/evidence/browser-smoke.json)
+The [recorded Lab 02 browser smoke](docs/evidence/lab-02-browser-smoke.json) checks movement, yaw, firing, cooldown, expiry, asteroid hits, score, pickup collection, homing, damage, explosion, death/respawn, wrap, reset, resize/DPR, focus, telemetry, and console errors. The in-app browser kept `document.hidden === false` when hidden, so blur/hidden cleanup and background clamping are supported by the preserved Lab 01 browser evidence plus automated regressions rather than a fabricated new hidden-tab claim. This is functional smoke evidence, not a frame-rate benchmark.
 
-## Lab checklist
+## Lab 02 checklist
 
-- [x] Vite vanilla, type=module, pinned Biome, .nvmrc
-- [x] rAF, clamped fixed-step accumulator, measured HUD
-- [x] Closure input with isDown / justPressed
-- [x] Pure ship integration, rotation, thrust, drag, speed clamp and wrap
-- [x] Previous/current interpolation, short angle path, DPR and resizing
-- [x] Three measured experiments and event-loop explanations
-- [x] English README with measured experiment results and limitations
-- [x] Unit tests and browser evidence
-- [x] Optional last-120 frame-time strip with explanatory telemetry
+- [x] Pure `Vector2`; `Entity` with private static ID source; one-level entity inheritance
+- [x] `World` over `Map`, `[Symbol.iterator]`, generator `ofKind`, deferred `Set` sweep
+- [x] Bullet TTL, asteroids, pickups, particles, score, damage, explosions, safe two-second respawn
+- [x] Separate swappable circle-collision system with no double damage from dead bullets
+- [x] Private `#hp` exposed through a getter and public behavior
+- [x] Deliberate detached-`this` regression test; wrapper, `.bind`, and class-field fixes documented
+- [x] Homing on bullet and asteroid; pickups as composition/data
+- [x] Lab 01 fixed step, accumulator, interpolation, resize/DPR, telemetry, and input cleanup preserved
+- [x] English architecture/design notes, focused automated tests, and browser smoke procedure
+- [ ] Final validated commit tagged `lab-02`
 
-The annotated `lab-01` tag identifies the validated submission. Verify it with `git show lab-01 --stat`.
+The annotated `lab-01` tag remains unchanged and identifies the validated first submission.

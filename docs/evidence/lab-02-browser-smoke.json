@@ -1,0 +1,80 @@
+{
+  "date": "2026-09-18",
+  "environment": {
+    "browser": "Codex in-app browser",
+    "url": "http://127.0.0.1:5173/",
+    "observedDevicePixelRatio": 1.1699999570846558
+  },
+  "checks": [
+    {
+      "name": "initial reset",
+      "result": "pass",
+      "observation": "R restored 100/100 hull, score 000000, eight objects, and the centered ship."
+    },
+    {
+      "name": "movement and rotation",
+      "result": "pass",
+      "observation": "Repeated real W and D key presses moved the ship above the landing ring and visibly changed its heading."
+    },
+    {
+      "name": "short fire tap",
+      "result": "pass-after-fix",
+      "observation": "A quick Space press was initially lost between fixed ticks. Fire now consumes held or edge input; one visible bullet raised the object count from eight to nine."
+    },
+    {
+      "name": "normal fire rate limit",
+      "result": "pass",
+      "observation": "Eight immediate Space presses produced one live bullet, not eight; the object count was nine."
+    },
+    {
+      "name": "collision, homing, score, and expiry",
+      "result": "pass",
+      "observation": "A guided shot curved toward the asteroid field and raised score to 15 on hit. Later rapid-fire shots destroyed multiple asteroids and raised score to 340; transient bullets and explosions swept from the object count."
+    },
+    {
+      "name": "shield pickup",
+      "result": "pass",
+      "observation": "Steering into the cyan plus removed that pickup, reduced object count to seven, and added 25 score."
+    },
+    {
+      "name": "rapid-fire pickup",
+      "result": "pass",
+      "observation": "Steering into the lightning module changed the HUD to RAPID 5.4s. Five Space presses at 100 ms intervals produced five visible projectiles and an object count of 12."
+    },
+    {
+      "name": "damage, destruction, and respawn",
+      "result": "pass",
+      "observation": "Asteroid contact reduced the hull, destruction showed SIGNAL LOST with a live countdown, and the ship returned after the two-second transition."
+    },
+    {
+      "name": "wrap",
+      "result": "pass",
+      "observation": "Sustained thrust carried the ship through the lower/right boundary and it reappeared at the upper/left side without a cross-arena interpolation streak."
+    },
+    {
+      "name": "telemetry and reset",
+      "result": "pass",
+      "observation": "H toggled the 120-interval panel; SIM CLOCK, TOTAL TICKS, CLAMP LOST, and alpha continued updating. R reset gameplay while loop telemetry continued."
+    },
+    {
+      "name": "resize and DPR",
+      "result": "pass",
+      "observation": "Desktop CSS size 1025.64x649.57 mapped to a 1200x760 backing store at DPR 1.17. Narrow CSS size 333.33x598.29 mapped to a 390x700 backing store; controls and HUD remained legible."
+    },
+    {
+      "name": "focus, blur, and hidden cleanup",
+      "result": "partial-browser / pass-unit",
+      "observation": "Canvas focus was visible and document.hidden remained false when the in-app browser UI was hidden or another in-app tab opened, so that host cannot exercise a real visibility transition. The existing EventTarget regression test verifies blur and hidden-page cleanup."
+    },
+    {
+      "name": "background and resume",
+      "result": "partial-browser / pass-regression",
+      "observation": "The in-app host kept document.hidden=false while backgrounded. The preserved Lab 01 browser evidence and fixed-loop tests cover resume clamping; this run does not claim a new hidden-tab measurement."
+    },
+    {
+      "name": "console",
+      "result": "pass",
+      "observation": "No warning or error entries after reset, telemetry, resize, movement, firing, pickup, collision, destruction, respawn, and wrap checks."
+    }
+  ]
+}
