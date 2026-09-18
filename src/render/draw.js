@@ -382,7 +382,7 @@ export function drawHud(
   const ship = world.player;
   ctx.save();
   ctx.fillStyle = "rgba(10, 22, 31, 0.93)";
-  ctx.fillRect(inset - 10, inset - 12, 264, 169);
+  ctx.fillRect(inset - 10, inset - 12, 264, 190);
   ctx.fillStyle = COLORS.orange;
   ctx.fillRect(inset, inset, 4, 23);
   ctx.fillStyle = COLORS.pale;

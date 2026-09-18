@@ -104,6 +104,7 @@ export class Lobby extends EventTarget {
   }
 
   join(name, roomId) {
+    if (!this.#visible) return false;
     const playerName = name.trim();
     const room = this.rooms.find((candidate) => candidate.id === roomId);
     if (playerName.length < 2) {

@@ -1,7 +1,7 @@
-import { loadImage, loadJson } from "./assets/loader.js";
-import { createCanvas } from "./render/canvas.js";
-import { drawLoadingScreen } from "./render/screens.js";
-import "./style.css";
+import { loadImage, loadJson } from "../src/assets/loader.js";
+import { createCanvas } from "../src/render/canvas.js";
+import { drawLoadingScreen } from "../src/render/screens.js";
+import "../src/style.css";
 
 const canvas = document.querySelector("#arena");
 const uiRoot = document.querySelector("#ui-root");

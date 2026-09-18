@@ -281,10 +281,10 @@ legend {
 
 .game-controls {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: flex-end;
   gap: 9px;
-  padding: 28px;
+  padding: 28px 28px 76px;
 }
 
 .pilot-chip {
@@ -336,7 +336,7 @@ legend {
   }
 
   .game-controls {
-    padding: 14px;
+    padding: 14px 14px 72px;
   }
 
   .pilot-chip {

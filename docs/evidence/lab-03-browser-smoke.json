@@ -1,0 +1,77 @@
+{
+  "recordedAt": "2026-09-18T19:10:00.000Z",
+  "environment": {
+    "browser": "Codex in-app Chromium browser",
+    "url": "http://127.0.0.1:5173/",
+    "server": "Vite 8.2.2 development server",
+    "viewportObserved": "1422x768 screenshot surface"
+  },
+  "happyPath": {
+    "startup": "Manifest and five real items reached 100%; lobby appeared only after all fulfilled.",
+    "lobbyRefresh": "Three room records rendered from /api/rooms with AUTO-REFRESH ACTIVE.",
+    "validation": "Empty call sign produced CALL SIGN NEEDS AT LEAST TWO CHARACTERS.",
+    "join": "Kestrel joined Crosswind Test; Canvas received focus and the game loop started.",
+    "arenaConfig": "HUD identified CROSSWIND / LAB 03.",
+    "sprites": "Ship/bullet/asteroid/pickup sprite frames rendered; gameplay reached collision, death, and timed respawn states.",
+    "audio": "Join executed the AudioContext resume path without warning or console error. Source overlap is additionally proven by the deterministic AudioEngine test because the browser runner cannot inspect audible output.",
+    "leave": "Leave arena stopped gameplay and immediately restored the lobby and its room refresh.",
+    "pagesSubpath": "A production build made with --base=/rotorloop/lab-03/ loaded its hashed JS/CSS, manifest, sprite/audio assets, and /api/rooms under that direct subpath; the lobby reached 100% with no console entries.",
+    "console": "No error, warning, or unhandled-rejection entries after startup, join, gameplay, leave, and failure recoveries."
+  },
+  "failureGallery": [
+    {
+      "case": "404",
+      "failure": "HttpError: HTTP 404 Not Found for /missing-sprite.svg",
+      "recovery": "Retry recovered path loaded /assets/rotorloop-sprites.svg; UI reported 404 case recovered."
+    },
+    {
+      "case": "timeout",
+      "failure": "TimeoutError: signal timed out",
+      "recovery": "Retry recovered path loaded /assets/arena.json; UI reported timeout case recovered."
+    },
+    {
+      "case": "abort",
+      "failure": "AbortError: Evidence abort",
+      "recovery": "Retry recovered path used a new controller and loaded /assets/arena.json; UI reported abort case recovered."
+    },
+    {
+      "case": "malformed",
+      "failure": "JsonParseError: Malformed JSON from /evidence-malformed.txt",
+      "recovery": "Retry recovered path loaded /assets/arena.json; UI reported malformed case recovered."
+    }
+  ],
+  "eventOrderObserved": {
+    "await": ["boot", "arm", "continue", "armed"],
+    "chain": [
+      "dock",
+      "clear",
+      "micro-1",
+      "manual-micro",
+      "micro-2",
+      "timer-in-then"
+    ],
+    "frame": [
+      "scheduled",
+      "microtask",
+      "timer",
+      "animation-frame",
+      "frame-microtask"
+    ],
+    "rejection": ["sync", "caught", "finally", "recovered"],
+    "all": [
+      "sync",
+      "queued-microtask",
+      "all-rejected",
+      "slow-settled"
+    ]
+  },
+  "automatedComplements": {
+    "resizeDpr": "canvas.test.js changes devicePixelRatio from 1 to 2 and proves dimensions and transforms do not compound.",
+    "hiddenBackground": "input.test.js proves hidden/blur cleanup; loop.test.js proves a long background interval is clamped and old elapsed time is dropped on restart.",
+    "overlappingAudio": "events-audio.test.js dispatches two fired events and proves two distinct AudioBufferSourceNodes start."
+  },
+  "limitations": [
+    "The in-app browser does not expose audible waveform inspection, so successful resume/no-console-error is the manual claim; source overlap is asserted deterministically.",
+    "The in-app browser did not expose a reliable document.hidden toggle or DPR override; preserved behavior is covered by existing deterministic browser-surface tests instead of a fabricated manual claim."
+  ]
+}

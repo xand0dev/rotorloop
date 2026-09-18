@@ -210,6 +210,7 @@ async function startPipeline() {
   };
   setLoadingControls("loading");
   ensureStaticRendering();
+  let acceptingProgress = true;
   try {
     const manifest = publicManifest(
       await withRetry(() => fetchJson(manifestUrl, { signal }), { signal }),
@@ -222,6 +223,7 @@ async function startPipeline() {
       signal,
       audioContext,
       onProgress(progress) {
+        if (!acceptingProgress || signal.aborted) return;
         loadingState = {
           phase: "loading",
           label: progress.item.name ?? progress.item.id,
@@ -248,6 +250,8 @@ async function startPipeline() {
     startLobby();
   } catch (error) {
     if (signal !== loadingController.signal) return;
+    acceptingProgress = false;
+    if (!signal.aborted) loadingController.abort(error);
     screen = "loading";
     ensureStaticRendering();
     const cancelled = isAbortError(error);

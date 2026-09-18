@@ -1,0 +1,68 @@
+{
+  "recordedAt": "2026-09-18T19:04:59.185Z",
+  "environment": {
+    "node": "v26.4.0",
+    "platform": "darwin arm64",
+    "transport": "loopback HTTP on 127.0.0.1 with no-store responses"
+  },
+  "method": {
+    "trials": 5,
+    "endpointDelayMs": {
+      "/sprite.svg": 120,
+      "/sound.wav": 180,
+      "/arena.json": 90
+    },
+    "sequence": "Each trial fetched the same three endpoints; sequential and Promise.all runs alternated.",
+    "limitation": "Delays are controlled server response delays on loopback. This demonstrates waiting/coordination cost, not public-network throughput."
+  },
+  "benchmark": {
+    "sequentialMs": [
+      410.27,
+      400.08,
+      398.95,
+      399.83,
+      400.04
+    ],
+    "concurrentMs": [
+      183.68,
+      183.27,
+      183.45,
+      183.6,
+      182.9
+    ]
+  },
+  "failures": [
+    {
+      "name": "missing sprite / 404",
+      "errorName": "HttpError",
+      "message": "HTTP 404 Not Found for http://127.0.0.1:55008/missing-sprite.svg",
+      "status": 404,
+      "elapsedMs": 2.59,
+      "recovery": "automatic retry blocked for 4xx; corrected URL can be retried manually"
+    },
+    {
+      "name": "network timeout",
+      "errorName": "TimeoutError",
+      "message": "The operation was aborted due to timeout",
+      "status": null,
+      "elapsedMs": 67.4,
+      "recovery": "TimeoutError is transient and eligible for bounded retry"
+    },
+    {
+      "name": "abort during loading",
+      "errorName": "AbortError",
+      "message": "pilot left",
+      "status": null,
+      "elapsedMs": 45.98,
+      "recovery": "AbortError stops immediately and is never retried"
+    },
+    {
+      "name": "malformed JSON",
+      "errorName": "JsonParseError",
+      "message": "Malformed JSON from http://127.0.0.1:55008/malformed.json",
+      "status": null,
+      "elapsedMs": 2.44,
+      "recovery": "JsonParseError is not retried; corrected data can be retried manually"
+    }
+  ]
+}

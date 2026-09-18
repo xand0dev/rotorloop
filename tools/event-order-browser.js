@@ -80,4 +80,8 @@ const results = {};
   results.all = output;
 }
 
-document.querySelector("#results").textContent = JSON.stringify(results, null, 2);
+document.querySelector("#results").textContent = JSON.stringify(
+  results,
+  null,
+  2,
+);

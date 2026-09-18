@@ -54,6 +54,8 @@ test("Lobby emits rooms and join events, validates input, and clears its interva
   assert.equal(lobby.join("Kestrel", "north"), true);
   assert.equal(joined[0].playerName, "Kestrel");
   assert.equal(lobby.visible, false);
+  assert.equal(lobby.join("Kestrel", "north"), false);
+  assert.equal(joined.length, 1);
   assert.deepEqual(cleared, [44]);
 });
 

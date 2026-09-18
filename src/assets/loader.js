@@ -39,15 +39,17 @@ export function abortableDelay(
 ) {
   throwIfAborted(signal);
   return new Promise((resolve, reject) => {
-    const timer = setTimer(resolve, ms);
-    signal?.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timer);
-        reject(createAbortError(signal.reason));
-      },
-      { once: true },
-    );
+    let timer;
+    const abort = () => {
+      clearTimeout(timer);
+      reject(createAbortError(signal.reason));
+    };
+    const finish = () => {
+      signal?.removeEventListener("abort", abort);
+      resolve();
+    };
+    timer = setTimer(finish, ms);
+    signal?.addEventListener("abort", abort, { once: true });
   });
 }
 
@@ -86,20 +88,23 @@ export async function withRetry(
   throw new Error("unreachable retry state");
 }
 
-function waitForAbort(signal) {
-  return new Promise((_, reject) => {
-    signal.addEventListener(
-      "abort",
-      () => reject(createAbortError(signal.reason)),
-      { once: true },
-    );
-  });
-}
-
 async function abortableWork(work, signal) {
   throwIfAborted(signal);
   if (!signal) return await work;
-  return await Promise.race([work, waitForAbort(signal)]);
+  return await new Promise((resolve, reject) => {
+    const abort = () => reject(createAbortError(signal.reason));
+    signal.addEventListener("abort", abort, { once: true });
+    Promise.resolve(work).then(
+      (value) => {
+        signal.removeEventListener("abort", abort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener("abort", abort);
+        reject(error);
+      },
+    );
+  });
 }
 
 async function decodeImageBlob(blob, { signal } = {}) {
