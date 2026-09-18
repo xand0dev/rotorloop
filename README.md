@@ -78,7 +78,7 @@ The optional Lab 01 frame-time strip is implemented as a chronological history o
 
 The first callback establishes the time origin and adds no artificial zero sample. History updates each callback; mean/p95/max refresh after approximately 250 ms of accumulated intervals, so the numbers can briefly lag the moving strip. History covers roughly two seconds at 60 callbacks/s and one at 120, **not a fixed duration**. Storage is bounded and sorting happens only on summary updates.
 
-These metrics were added after the original `lab-01` snapshot. The three experiments below retain their original evidence and baseline revisions; they are not benchmarks of the expanded HUD.
+The three experiments below retain their recorded baseline revisions; they are not benchmarks of the expanded HUD.
 
 ## Where multiplayer enters the course
 
@@ -168,9 +168,7 @@ npm test
 npm run build
 ```
 
-Original `lab-01` validation on Node 24.20.0: **16 tests passed**, Biome clean, production build passed. Browser checks covered thrust/yaw, held R, wrapping, focus loss, repeat resize, DPR 1/2 and console errors. Original smoke HUD: 60 steps/s and 120 render callbacks/s. Synthetic 60/120 Hz scheduler tests are labeled tests, not hardware evidence.
-
-The telemetry extension passed **all 19 tests**, Biome and the production build on Node 24.20.0, including bounded history, summary math, raw stalls, first-frame exclusion and restart cleanup. Its separate [browser smoke](docs/evidence/telemetry-smoke.json) records functional checks, not monitor benchmarks; see the [method and reproduction command](docs/evidence/telemetry-method.md).
+The `lab-01` release passed **all 19 tests**, Biome and the production build on Node 24.20.0. Coverage includes controlled 60/120 Hz timestamps, lifecycle restart safety, bounded telemetry history, pure integration, wrap/interpolation, input cleanup and DPR changes. Browser checks cover thrust/yaw, reset, wrapping, focus loss, resize, DPR 1/2 and console errors. Synthetic scheduler tests are labeled tests, not hardware evidence. The separate [telemetry browser smoke](docs/evidence/telemetry-smoke.json) is a functional check rather than a monitor benchmark; see the [method and reproduction command](docs/evidence/telemetry-method.md).
 
 [Browser evidence](docs/evidence/browser-smoke.json)
 
@@ -186,4 +184,4 @@ The telemetry extension passed **all 19 tests**, Biome and the production build 
 - [x] Unit tests and browser evidence
 - [x] Optional last-120 frame-time strip with explanatory telemetry
 
-`lab-01` preserves the original validated submission at `0f134a2`. The later telemetry extension is on `main`; the published tag is not silently moved. Inspect either snapshot with `git show lab-01 --stat` or `git show HEAD --stat`.
+The annotated `lab-01` tag identifies the validated submission. Verify it with `git show lab-01 --stat`.
