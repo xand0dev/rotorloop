@@ -1,44 +1,41 @@
 import { createInput } from "./input.js";
 import { createLoop } from "./loop.js";
 import { createCanvas } from "./render/canvas.js";
-import {
-  drawArena,
-  drawHud,
-  drawShip,
-  interpolateShip,
-} from "./render/draw.js";
-import { wrapShip, wrapState } from "./sim/arena.js";
-import { createShip, integrate } from "./sim/ship.js";
+import { drawArena, drawHud, drawWorld } from "./render/draw.js";
+import { World } from "./sim/world.js";
 import "./style.css";
 
 const canvas = document.querySelector("#arena");
 const input = createInput(window);
-let current = createShip();
-let previous = current;
+const world = new World();
 const surface = createCanvas(canvas, ({ width, height }) => {
-  current = wrapShip(current, width, height);
-  previous = current;
+  world.resize(width, height);
 });
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 let showTelemetry = surface.getSize().width >= 900;
 
 function reset() {
   const { width, height } = surface.getSize();
-  current = createShip(width / 2, height / 2);
-  previous = current;
+  world.resize(width, height);
+  world.reset();
 }
+
+// The wrapper keeps Ship#fire attached to its receiver; see README's `this` note.
+const fire = () => world.firePlayerWeapon();
 
 function simulate(dt) {
   if (input.justPressed("KeyR")) reset();
-  const { width, height } = surface.getSize();
-  const controls = {
-    turn:
-      Number(input.isDown("KeyD") || input.isDown("ArrowRight")) -
-      Number(input.isDown("KeyA") || input.isDown("ArrowLeft")),
-    thrust: input.isDown("KeyW") || input.isDown("ArrowUp"),
-  };
-  const next = integrate(current, controls, dt);
-  ({ previous, current } = wrapState(current, next, width, height));
+  world.step(
+    dt,
+    {
+      turn:
+        Number(input.isDown("KeyD") || input.isDown("ArrowRight")) -
+        Number(input.isDown("KeyA") || input.isDown("ArrowLeft")),
+      thrust: input.isDown("KeyW") || input.isDown("ArrowUp"),
+      fire: input.isDown("Space"),
+    },
+    fire,
+  );
 }
 
 function render(alpha) {
@@ -47,10 +44,10 @@ function render(alpha) {
   const size = surface.getSize();
   if (size.width <= 0 || size.height <= 0) return;
   drawArena(surface.ctx, size);
-  drawShip(surface.ctx, interpolateShip(previous, current, alpha), {
+  drawWorld(surface.ctx, world, alpha, {
     reducedMotion: reducedMotion.matches,
   });
-  drawHud(surface.ctx, loop.getStats(), size, alpha, showTelemetry);
+  drawHud(surface.ctx, loop.getStats(), world, size, alpha, showTelemetry);
 }
 
 const loop = createLoop({ simulate, render });
@@ -62,7 +59,6 @@ function focusArena() {
 }
 canvas.addEventListener("pointerdown", focusArena);
 
-// Vite replaces modules during development; leave no old listeners or rAF behind.
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     loop.stop();

@@ -4,12 +4,16 @@ import { interpolateShip } from "../src/render/draw.js";
 import { createShip } from "../src/sim/ship.js";
 
 test("renderer interpolates frozen snapshots across the short angular seam", () => {
+  const left = createShip(10, 20);
+  const right = createShip(30, 60);
   const previous = Object.freeze({
-    ...createShip(10, 20),
+    x: left.x,
+    y: left.y,
     angle: (179 * Math.PI) / 180,
   });
   const current = Object.freeze({
-    ...createShip(30, 60),
+    x: right.x,
+    y: right.y,
     angle: (-179 * Math.PI) / 180,
   });
   const visual = interpolateShip(previous, current, 0.5);

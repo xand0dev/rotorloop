@@ -1,4 +1,4 @@
-const ARROW_CONTROLS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp"]);
+const ARROW_CONTROLS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "Space"]);
 
 function isEditable(element) {
   return (
