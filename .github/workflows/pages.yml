@@ -1,0 +1,110 @@
+name: Deploy versioned labs to Pages
+
+on:
+  push:
+    branches: [main]
+    tags: ["lab-*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out complete history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install current dependencies
+        run: npm ci
+
+      - name: Validate current main
+        run: |
+          npm run check
+          npm test
+
+      - name: Build current main
+        run: npm run build -- --base=/rotorloop/
+
+      - name: Assemble current and tagged builds
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -rf _site
+          mkdir -p _site/versions
+          cp -R dist/. _site/
+
+          cat > _site/versions/index.html <<'HTML'
+          <!doctype html>
+          <html lang="en">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>RotorLoop releases</title>
+              <style>
+                :root { color-scheme: dark; font: 16px/1.5 ui-monospace, monospace; background: #07111d; color: #d9e8f5; }
+                body { max-width: 42rem; margin: 0 auto; padding: 4rem 1.5rem; }
+                h1 { color: #ff9b54; letter-spacing: .04em; }
+                p { color: #91a8bb; }
+                ul { display: grid; gap: .75rem; padding: 0; list-style: none; }
+                a { display: block; padding: 1rem; border: 1px solid #27445d; border-radius: .5rem; color: #d9e8f5; text-decoration: none; background: #0c1d2d; }
+                a:hover, a:focus-visible { border-color: #ff9b54; outline: none; }
+              </style>
+            </head>
+            <body>
+              <h1>RotorLoop releases</h1>
+              <p>Each tagged build is an immutable lab submission. Main is the latest work.</p>
+              <ul>
+                <li><a href="../">Latest main</a></li>
+          HTML
+
+          for ref in lab-01 lab-02 lab-03; do
+            if git show-ref --verify --quiet "refs/tags/${ref}"; then
+              worktree="${RUNNER_TEMP}/${ref}"
+              git worktree add --detach "${worktree}" "${ref}"
+              npm ci --prefix "${worktree}"
+              npm run --prefix "${worktree}" build -- --base="/rotorloop/${ref}/"
+              mkdir -p "_site/${ref}"
+              cp -R "${worktree}/dist/." "_site/${ref}/"
+              printf '        <li><a href="../%s/">%s</a></li>\n' "${ref}" "${ref}" >> _site/versions/index.html
+            fi
+          done
+
+          cat >> _site/versions/index.html <<'HTML'
+              </ul>
+            </body>
+          </html>
+          HTML
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
+        with:
+          path: ./_site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages

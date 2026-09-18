@@ -6,6 +6,8 @@ Fly a quadcopter. See the difference between a simulation tick and a rendered fr
 
 [Raw measurements and reproduction notes](docs/evidence/RESULTS.md)
 
+[Play the latest build](https://xand0dev.github.io/rotorloop/) · [Open the frozen Lab 01 build](https://xand0dev.github.io/rotorloop/lab-01/) · [Choose a tagged lab](https://xand0dev.github.io/rotorloop/versions/)
+
 ![RotorLoop running in Chrome](docs/evidence/production.png)
 
 ## Run
