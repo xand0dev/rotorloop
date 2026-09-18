@@ -82,7 +82,8 @@ For `const ship = new Ship()`, the relevant lookup chain is:
 
 ```text
 ship ──► Ship.prototype ──► Entity.prototype ──► Object.prototype ──► null
-           fire(), hp          update(), x/y
+           fire(), hp,         beginStep(), x/y,
+           update()            base update()
 ```
 
 `fire` and `update` are not own properties copied into each instance. `ship.fire` first checks `ship`, then finds one shared function on `Ship.prototype`. `Object.hasOwn(ship, "update")` is false, while `ship instanceof Entity` is true. Private `#hp` is internal class state; public code can only read `ship.hp` and change it through `damage`, `heal`, or `prepareRespawn`.
@@ -171,6 +172,6 @@ The [recorded Lab 02 browser smoke](docs/evidence/lab-02-browser-smoke.json) che
 - [x] Homing on bullet and asteroid; pickups as composition/data
 - [x] Lab 01 fixed step, accumulator, interpolation, resize/DPR, telemetry, and input cleanup preserved
 - [x] English architecture/design notes, focused automated tests, and browser smoke procedure
-- [ ] Final validated commit tagged `lab-02`
+- [x] Final validated commit tagged `lab-02`
 
 The annotated `lab-01` tag remains unchanged and identifies the validated first submission.
