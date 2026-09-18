@@ -1,0 +1,28 @@
+{
+  "version": 3,
+  "sprites": [
+    {
+      "id": "entities",
+      "name": "Entity sprite sheet",
+      "url": "./rotorloop-sprites.svg",
+      "frames": {
+        "ship": [0, 0, 128, 128],
+        "bullet": [128, 0, 128, 128],
+        "asteroid": [256, 0, 128, 128],
+        "pickup": [384, 0, 128, 128]
+      }
+    }
+  ],
+  "audio": [
+    { "id": "shoot", "name": "Pulse discharge", "url": "./audio/shoot.wav" },
+    { "id": "hit", "name": "Hull impact", "url": "./audio/hit.wav" },
+    {
+      "id": "explosion",
+      "name": "Debris burst",
+      "url": "./audio/explosion.wav"
+    }
+  ],
+  "json": [
+    { "id": "arena", "name": "Arena configuration", "url": "./arena.json" }
+  ]
+}

@@ -13,7 +13,8 @@
     "lint": "biome lint .",
     "format": "biome format --write .",
     "check": "biome check .",
-    "test": "node --test"
+    "test": "node --test",
+    "evidence": "node tools/run-lab03-evidence.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",

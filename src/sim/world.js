@@ -1,3 +1,4 @@
+import { emit } from "../events.js";
 import { applyPickup } from "./behaviors.js";
 import { collisionPairs } from "./collision.js";
 import { Asteroid, Bullet, Explosion, Pickup } from "./entities.js";
@@ -11,12 +12,19 @@ export class World {
   #pendingRemoval = new Set();
   #respawn = null;
 
-  constructor({ width = 960, height = 640, rng = Math.random } = {}) {
+  constructor({
+    width = 960,
+    height = 640,
+    rng = Math.random,
+    events = new EventTarget(),
+  } = {}) {
     this.bounds = { width, height };
     this.rng = rng;
+    this.events = events;
     this.score = 0;
     this.player = null;
     this.respawnRemaining = 0;
+    this.arena = {};
   }
 
   spawn(entity) {
@@ -53,12 +61,14 @@ export class World {
     for (const entity of this) this.#wrap(entity);
   }
 
-  reset() {
+  reset(arena = this.arena) {
+    this.arena = { ...arena };
     this.#entities.clear();
     this.#pendingRemoval.clear();
     this.#respawn = null;
     this.respawnRemaining = 0;
     this.score = 0;
+    emit(this.events, "scorechange", { score: 0, delta: 0, reason: "reset" });
     const ship = this.spawn(
       new Ship(this.bounds.width / 2, this.bounds.height / 2),
     );
@@ -69,35 +79,52 @@ export class World {
       [0.76, 0.72, -48, -42],
       [0.5, 0.14, 0, 48],
     ];
+    const speed = this.arena.asteroidSpeed ?? 1;
+    const scale = this.arena.asteroidScale ?? 1;
     for (const [x, y, vx, vy] of layout) {
       this.spawn(
         new Asteroid({
           pos: new Vector2(this.bounds.width * x, this.bounds.height * y),
-          vel: new Vector2(vx, vy),
-          radius: 20 + this.rng() * 9,
+          vel: new Vector2(vx * speed, vy * speed),
+          radius: (20 + this.rng() * 9) * scale,
         }),
       );
     }
     const hunter = [...this.ofKind("asteroid")].at(-1);
-    hunter.homing = { targetKind: "ship", turnRate: 0.28 };
-    this.spawn(
-      new Pickup({
-        pos: new Vector2(this.bounds.width * 0.35, this.bounds.height * 0.42),
-        effect: "shield",
-      }),
-    );
-    this.spawn(
-      new Pickup({
-        pos: new Vector2(this.bounds.width * 0.67, this.bounds.height * 0.58),
-        effect: "rapid-fire",
-      }),
-    );
+    if (this.arena.hunter !== false) {
+      hunter.homing = { targetKind: "ship", turnRate: 0.28 };
+    }
+    const pickups = this.arena.pickups ?? ["shield", "rapid-fire"];
+    const pickupPositions = [
+      [0.35, 0.42],
+      [0.67, 0.58],
+    ];
+    for (const [index, effect] of pickups.entries()) {
+      const [x, y] = pickupPositions[index % pickupPositions.length];
+      this.spawn(
+        new Pickup({
+          pos: new Vector2(this.bounds.width * x, this.bounds.height * y),
+          effect,
+        }),
+      );
+    }
+    emit(this.events, "statechange", {
+      label: `${this.arena.fieldLabel ?? "ARENA"} READY`,
+      state: "active",
+    });
     return ship;
   }
 
   firePlayerWeapon() {
     const bullet = this.player?.fire();
-    if (bullet) this.spawn(bullet);
+    if (bullet) {
+      this.spawn(bullet);
+      emit(this.events, "fired", {
+        entityId: bullet.id,
+        ownerId: bullet.ownerId,
+        position: { x: bullet.pos.x, y: bullet.pos.y },
+      });
+    }
     return bullet;
   }
 
@@ -122,12 +149,19 @@ export class World {
       const bullet = a instanceof Bullet ? a : b;
       const asteroid = a instanceof Asteroid ? a : b;
       this.despawn(bullet.id);
-      if (asteroid.damage(bullet.damage)) {
-        this.score += 100;
+      const destroyed = asteroid.damage(bullet.damage);
+      emit(this.events, "hit", {
+        target: "asteroid",
+        targetId: asteroid.id,
+        damage: bullet.damage,
+        destroyed,
+      });
+      if (destroyed) {
+        this.#addScore(100, "asteroid-destroyed");
         this.#explode(asteroid.pos, "#ffae62");
         this.despawn(asteroid.id);
       } else {
-        this.score += 15;
+        this.#addScore(15, "asteroid-hit");
         this.#explode(bullet.pos, "#f7d37b");
       }
       return;
@@ -137,7 +171,14 @@ export class World {
       const ship = a instanceof Ship ? a : b;
       if (bullet.ownerId === ship.id) return;
       this.despawn(bullet.id);
-      if (ship.damage(bullet.damage)) {
+      const accepted = ship.damage(bullet.damage);
+      if (accepted) {
+        emit(this.events, "hit", {
+          target: "ship",
+          targetId: ship.id,
+          damage: bullet.damage,
+          destroyed: ship.hp === 0,
+        });
         this.#explode(bullet.pos, "#ff6577");
         if (ship.hp === 0) this.#destroyShip(ship);
       }
@@ -147,9 +188,13 @@ export class World {
       const ship = a instanceof Ship ? a : b;
       const pickup = a instanceof Pickup ? a : b;
       applyPickup(ship, pickup);
-      this.score += 25;
+      this.#addScore(25, "pickup");
       this.#explode(pickup.pos, "#65d6c1");
       this.despawn(pickup.id);
+      emit(this.events, "statechange", {
+        label: `${pickup.pickup.effect.toUpperCase()} ACQUIRED`,
+        state: "pickup",
+      });
       return;
     }
     if (kinds.has("ship") && kinds.has("asteroid")) {
@@ -163,6 +208,10 @@ export class World {
     this.#respawn = ship;
     this.respawnRemaining = RESPAWN_DELAY;
     this.despawn(ship.id);
+    emit(this.events, "statechange", {
+      label: "SIGNAL LOST",
+      state: "respawning",
+    });
   }
 
   #advanceRespawn(dt) {
@@ -172,6 +221,10 @@ export class World {
     this.#respawn = null;
     ship.prepareRespawn(this.#safePosition(ship.radius));
     this.spawn(ship);
+    emit(this.events, "statechange", {
+      label: "SIGNAL RESTORED",
+      state: "active",
+    });
   }
 
   #safePosition(radius) {
@@ -201,6 +254,15 @@ export class World {
         rng: this.rng,
       }),
     );
+    emit(this.events, "exploded", {
+      position: { x: pos.x, y: pos.y },
+      color,
+    });
+  }
+
+  #addScore(delta, reason) {
+    this.score += delta;
+    emit(this.events, "scorechange", { score: this.score, delta, reason });
   }
 
   #wrap(entity) {

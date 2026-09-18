@@ -14,6 +14,21 @@ const COLORS = {
 };
 const MONO = '"SFMono-Regular", Consolas, "Liberation Mono", monospace';
 
+export function drawSpriteFrame(ctx, image, frame, size) {
+  const [sourceX, sourceY, sourceWidth, sourceHeight] = frame;
+  ctx.drawImage(
+    image,
+    sourceX,
+    sourceY,
+    sourceWidth,
+    sourceHeight,
+    -size / 2,
+    -size / 2,
+    size,
+    size,
+  );
+}
+
 export function interpolateShip(previous, current, alpha) {
   const previousX = previous.x ?? previous.pos.x;
   const previousY = previous.y ?? previous.pos.y;
@@ -86,7 +101,11 @@ export function drawArena(ctx, { width, height }) {
   ctx.restore();
 }
 
-export function drawShip(ctx, ship, { reducedMotion = false } = {}) {
+export function drawShip(
+  ctx,
+  ship,
+  { reducedMotion = false, sprites = null } = {},
+) {
   ctx.save();
   ctx.translate(ship.x, ship.y);
   ctx.rotate(ship.angle);
@@ -104,6 +123,11 @@ export function drawShip(ctx, ship, { reducedMotion = false } = {}) {
     }
     ctx.stroke();
     ctx.globalAlpha = 1;
+  }
+  if (sprites) {
+    drawSpriteFrame(ctx, sprites.image, sprites.frames.ship, 80);
+    ctx.restore();
+    return;
   }
   ctx.strokeStyle = COLORS.pale;
   ctx.lineWidth = 5;
@@ -145,7 +169,7 @@ export function drawShip(ctx, ship, { reducedMotion = false } = {}) {
   ctx.restore();
 }
 
-function drawBullet(ctx, bullet, visual) {
+function drawBullet(ctx, bullet, visual, sprites) {
   ctx.save();
   ctx.strokeStyle = bullet.homing ? COLORS.cyan : COLORS.amber;
   ctx.lineWidth = 2;
@@ -155,17 +179,37 @@ function drawBullet(ctx, bullet, visual) {
   ctx.lineTo(visual.x, visual.y);
   ctx.stroke();
   ctx.globalAlpha = 1;
-  ctx.fillStyle = COLORS.pale;
-  ctx.beginPath();
-  ctx.arc(visual.x, visual.y, bullet.radius, 0, Math.PI * 2);
-  ctx.fill();
+  if (sprites) {
+    ctx.translate(visual.x, visual.y);
+    ctx.rotate(visual.angle);
+    drawSpriteFrame(ctx, sprites.image, sprites.frames.bullet, 25);
+  } else {
+    ctx.fillStyle = COLORS.pale;
+    ctx.beginPath();
+    ctx.arc(visual.x, visual.y, bullet.radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.restore();
 }
 
-function drawAsteroid(ctx, asteroid, visual) {
+function drawAsteroid(ctx, asteroid, visual, sprites) {
   ctx.save();
   ctx.translate(visual.x, visual.y);
   ctx.rotate(visual.angle);
+  if (sprites) {
+    drawSpriteFrame(
+      ctx,
+      sprites.image,
+      sprites.frames.asteroid,
+      asteroid.radius * 2.65,
+    );
+    if (asteroid.homing) {
+      ctx.fillStyle = COLORS.danger;
+      ctx.fillRect(-4, -2, 8, 4);
+    }
+    ctx.restore();
+    return;
+  }
   ctx.fillStyle = "#172a36";
   ctx.strokeStyle = asteroid.homing ? COLORS.danger : COLORS.muted;
   ctx.lineWidth = asteroid.homing ? 2.5 : 1.5;
@@ -189,12 +233,17 @@ function drawAsteroid(ctx, asteroid, visual) {
   ctx.restore();
 }
 
-function drawPickup(ctx, pickup, visual, reducedMotion) {
+function drawPickup(ctx, pickup, visual, reducedMotion, sprites) {
   const pulse = reducedMotion ? 1 : 1 + Math.sin(pickup.phase * 4) * 0.08;
   ctx.save();
   ctx.translate(visual.x, visual.y);
   ctx.scale(pulse, pulse);
   ctx.rotate(pickup.phase * 0.65);
+  if (sprites) {
+    drawSpriteFrame(ctx, sprites.image, sprites.frames.pickup, 51);
+    ctx.restore();
+    return;
+  }
   ctx.strokeStyle = COLORS.cyan;
   ctx.fillStyle = "rgba(101, 214, 193, 0.12)";
   ctx.lineWidth = 2;
@@ -242,7 +291,12 @@ function drawExplosion(ctx, explosion, reducedMotion) {
   ctx.restore();
 }
 
-export function drawWorld(ctx, world, alpha, { reducedMotion = false } = {}) {
+export function drawWorld(
+  ctx,
+  world,
+  alpha,
+  { reducedMotion = false, sprites = null } = {},
+) {
   for (const entity of world) {
     if (!entity.alive) continue;
     const visual = interpolateEntity(entity, alpha);
@@ -250,14 +304,14 @@ export function drawWorld(ctx, world, alpha, { reducedMotion = false } = {}) {
       drawShip(
         ctx,
         { ...entity, ...visual, rapidFire: entity.rapidFire },
-        { reducedMotion },
+        { reducedMotion, sprites },
       );
     } else if (entity.kind === "bullet") {
-      drawBullet(ctx, entity, visual);
+      drawBullet(ctx, entity, visual, sprites);
     } else if (entity.kind === "asteroid") {
-      drawAsteroid(ctx, entity, visual);
+      drawAsteroid(ctx, entity, visual, sprites);
     } else if (entity.kind === "pickup") {
-      drawPickup(ctx, entity, visual, reducedMotion);
+      drawPickup(ctx, entity, visual, reducedMotion, sprites);
     } else if (entity.kind === "explosion") {
       drawExplosion(ctx, entity, reducedMotion);
     }
@@ -322,6 +376,7 @@ export function drawHud(
   { width, height },
   alpha = 0,
   showTelemetry = false,
+  hud = null,
 ) {
   const inset = width < 500 ? 18 : 30;
   const ship = world.player;
@@ -335,7 +390,11 @@ export function drawHud(
   ctx.fillText("ROTORLOOP", inset + 14, inset + 20);
   ctx.font = `10px ${MONO}`;
   ctx.fillStyle = COLORS.muted;
-  ctx.fillText("ENTITY ARENA / LAB 02", inset, inset + 42);
+  ctx.fillText(
+    `${world.arena.fieldLabel ?? "ENTITY ARENA"} / LAB 03`,
+    inset,
+    inset + 42,
+  );
   const hp = ship?.alive ? ship.hp : 0;
   const hpRatio = hp / (ship?.maxHp ?? 100);
   ctx.fillStyle = COLORS.marking;
@@ -345,7 +404,7 @@ export function drawHud(
   ctx.font = `11px ${MONO}`;
   const rows = [
     ["HULL", ship?.alive ? `${hp} / ${ship.maxHp}` : "OFFLINE"],
-    ["SCORE", String(world.score).padStart(6, "0")],
+    ["SCORE", String(hud?.score ?? world.score).padStart(6, "0")],
     ["OBJECTS", `${[...world].length}`],
     [
       "WEAPON",
@@ -360,6 +419,11 @@ export function drawHud(
     ctx.fillText(label, inset, y);
     ctx.fillStyle = COLORS.pale;
     ctx.fillText(value, inset + 82, y);
+  }
+  if (hud?.lastSignal) {
+    ctx.fillStyle = COLORS.orange;
+    ctx.font = `9px ${MONO}`;
+    ctx.fillText(hud.lastSignal, inset, inset + 172);
   }
   if (!ship?.alive && world.respawnRemaining > 0) {
     ctx.textAlign = "center";

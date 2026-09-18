@@ -1,0 +1,28 @@
+{
+  "rooms": [
+    {
+      "id": "north-loop",
+      "name": "North Loop",
+      "pilots": 2,
+      "capacity": 6,
+      "condition": "CALM",
+      "arena": { "asteroidSpeed": 0.85, "asteroidScale": 0.92, "fieldLabel": "NORTH LOOP" }
+    },
+    {
+      "id": "crosswind",
+      "name": "Crosswind Test",
+      "pilots": 4,
+      "capacity": 6,
+      "condition": "GUST 18",
+      "arena": { "asteroidSpeed": 1.25, "asteroidScale": 1, "fieldLabel": "CROSSWIND" }
+    },
+    {
+      "id": "heavy-field",
+      "name": "Heavy Field",
+      "pilots": 1,
+      "capacity": 4,
+      "condition": "DENSE",
+      "arena": { "asteroidSpeed": 0.75, "asteroidScale": 1.3, "fieldLabel": "HEAVY FIELD" }
+    }
+  ]
+}

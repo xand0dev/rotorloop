@@ -1,0 +1,7 @@
+{
+  "asteroidSpeed": 1,
+  "asteroidScale": 1,
+  "hunter": true,
+  "pickups": ["shield", "rapid-fire"],
+  "fieldLabel": "NORTH LOOP"
+}
