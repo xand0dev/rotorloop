@@ -1,14 +1,19 @@
-# RotorLoop — Async Flight Room
+# RotorLoop — завантаження ресурсів і лобі
 
-Fly a quadcopter through a Canvas arena after a real cancellable startup pipeline and a live pre-flight lobby. Lab 03 adds concurrent asset loading, sprite sheets, decoded Web Audio, bounded retry, observable failure recovery, and `EventTarget` decoupling without changing the fixed-step simulation from Labs 01–02.
+**Лабораторна 3. Асинхронний JavaScript: Promises, async/await та екран завантаження.**
 
-**Lab 03 · Promises and `async`/`await` · Fetch and cancellation · Web Audio · Canvas 2D**
+Перед початком гри завантажуються спрайти, звуки й конфігурація арени. Потім гравець вводить ім’я, обирає кімнату й запускає локальну гру. Очікування мережі не блокує головний потік. Завантаження можна скасувати або повторити після помилки.
 
-[Play the latest build](https://xand0dev.github.io/rotorloop/) · [Lab 01](https://xand0dev.github.io/rotorloop/lab-01/) · [Lab 02](https://xand0dev.github.io/rotorloop/lab-02/) · [Lab 03](https://xand0dev.github.io/rotorloop/lab-03/) · [Choose a release](https://xand0dev.github.io/rotorloop/versions/)
+## Що здаємо
 
-## Run it
+- [Репозиторій із тегом lab-03](https://github.com/xand0dev/rotorloop/tree/lab-03).
+- Цей README з порівнянням послідовного й одночасного завантаження, п’ятьма головоломками та галереєю збоїв.
+- [Демо лабораторної 3](https://xand0dev.github.io/rotorloop/lab-03/).
+- [Демо Lab 01](https://xand0dev.github.io/rotorloop/lab-01/) · [Демо Lab 02](https://xand0dev.github.io/rotorloop/lab-02/) · [Усі версії](https://xand0dev.github.io/rotorloop/versions/).
 
-Use Node 24 or newer (`.nvmrc` records the course baseline).
+## Запуск і керування
+
+Потрібен Node.js 24 або новіший; базова версія вказана у `.nvmrc`.
 
 ```sh
 nvm use
@@ -16,137 +21,145 @@ npm ci
 npm run dev
 ```
 
-Open the printed local URL. Startup loads five real manifest items, then the lobby fetches the static `/api/rooms` response. Enter a call sign, select a room, and choose **Join room**. The click also resumes Web Audio in the required user gesture.
+Відкрити адресу, яку виведе Vite. Спочатку завантажуються п’ять ресурсів із manifest, потім лобі запитує статичний список `/api/rooms`. У полі **CALL SIGN** ввести ім’я, обрати кімнату й натиснути **JOIN ROOM**. Цей клік також дозволяє запуск звуку через Web Audio.
 
-| Control | Action |
+| Керування | Дія |
 | --- | --- |
-| W / ↑ | Forward thrust |
-| A / ←, D / → | Yaw left / right |
-| Space | Fire; holding it uses the weapon cooldown |
-| R | Reset the selected arena |
-| H | Toggle loop telemetry |
-| Leave arena | Stop the loop and return to the refreshing lobby |
+| W / ↑ | Тяга вперед |
+| A / ←, D / → | Поворот ліворуч / праворуч |
+| Space | Постріл; при утриманні діє затримка між пострілами |
+| R | Скинути обрану арену |
+| H | Показати або приховати телеметрію |
+| Leave arena | Зупинити гру й повернутися в лобі |
 
-Click the arena to focus it. Blur and hidden-page handlers clear held input, preventing a lost `keyup` from leaving the ship moving or firing.
+Після входу клацнути по арені для фокуса. При втраті фокуса або приховуванні сторінки стан клавіш очищається.
 
-## What Lab 03 adds
+## Що додано
 
-- A manifest-driven `Promise.all` pipeline for one sprite sheet, three generated audio files, and arena JSON.
-- Structured `HttpError` and `JsonParseError` failures, bounded exponential backoff with jitter, and abortable retry delays.
-- A Canvas loading screen whose rotor gauge advances only when a real item fulfills. Cancel and Retry are visible recovery states.
-- Explicit sprite-sheet source rectangles for ships, bullets, asteroids, and pickups; DPR-safe drawing remains owned by the Canvas surface.
-- Web Audio buffers decoded during startup and fresh buffer sources for overlapping shoot, hit, and explosion playback.
-- `GameEvents extends EventTarget`; simulation publishes `fired`, `hit`, `exploded`, `scorechange`, and `statechange` without importing audio, HUD, or DOM code.
-- `Lobby extends EventTarget` with a separate DOM view, per-request timeout, visible-only refresh interval, abort-on-leave, and stale-response protection.
-- Three room choices that merge their arena settings over the manifest’s base configuration.
+- Завантаження за manifest через `Promise.all`: спрайтшит, три звуки та JSON арени.
+- Помилки `HttpError` і `JsonParseError`, повторні спроби зі збільшенням затримки та випадковим відхиленням.
+- Екран завантаження на Canvas: прогрес змінюється лише після завершення реального ресурсу; є Cancel і Retry.
+- Малювання корабля, куль, астероїдів і бонусів із заданих прямокутників спрайтшита.
+- Декодування звуків під час завантаження, окремі джерела для одночасного відтворення кількох ефектів.
+- `GameEvents extends EventTarget`: події `fired`, `hit`, `exploded`, `scorechange` та `statechange`.
+- `Lobby extends EventTarget` з окремим DOM-модулем, таймаутами, періодичним оновленням, скасуванням запитів і захистом від застарілих відповідей.
+- Три кімнати, налаштування яких доповнюють базову конфігурацію арени.
 
-The sprite sheet and WAV files are original local assets. [`public/assets/rotorloop-sprites.svg`](public/assets/rotorloop-sprites.svg) uses the project’s existing survey-field palette. The three PCM WAV files are deterministically synthesized by [`tools/generate-audio.mjs`](tools/generate-audio.mjs); no third-party game art or audio is included.
+[Спрайтшит](public/assets/rotorloop-sprites.svg) створений для цього проєкту. Три WAV-файли синтезуються скриптом [generate-audio.mjs](tools/generate-audio.mjs). Сторонні зображення та звуки не використані.
 
-## Startup lifecycle and async architecture
+## Послідовність запуску
 
 ```text
-page opens
-   │
-   ▼
-fetch manifest ── transient failure ──► retry + exponential delay
-   │                                      │
-   │                                      └─ AbortSignal cancels fetch or delay
-   ▼
+відкриття сторінки
+   ↓
+manifest → при тимчасовій помилці retry із затримкою
+   ↓
 Promise.all([sprite, shoot, hit, explosion, arena])
-   │              each fulfillment ──► real Canvas progress
-   ▼
-all fulfilled
-   │
-   ▼
-Lobby.enter() ──► timed /api/rooms fetch ──► roomschange event ──► DOM view
-   │                    ▲
-   │                    └─ interval exists only while visible
-   ▼ Join click
-audio.resume() + Lobby.leave() + abort request/interval
-   │
-   ▼
-fixed-step World ── CustomEvent ──► AudioEngine
-       │              └───────────► HUD model
-       └─ no imports from audio, HUD, or DOM
+   │ кожний готовий ресурс → оновлення прогресу на Canvas
+   ↓
+усі ресурси готові
+   ↓
+Lobby.enter() → /api/rooms із таймаутом → roomschange → DOM
+   │ повторення запиту лише поки лобі відкрите
+   ↓ натискання Join
+audio.resume() + Lobby.leave() + скасування запиту й таймера
+   ↓
+World → CustomEvent → AudioEngine та HUD
 ```
 
-| Module | Responsibility |
+| Модуль | Призначення |
 | --- | --- |
-| [`src/assets/errors.js`](src/assets/errors.js) | HTTP/JSON error types plus abort/retry classification. |
-| [`src/assets/loader.js`](src/assets/loader.js) | `fetchJson`, image/audio/JSON loaders, abortable delay, retry, and `loadAll`. |
-| [`src/audio.js`](src/audio.js) | Owns `AudioContext`, unlock state, decoded buffers, and overlapping sources. |
-| [`src/events.js`](src/events.js) | Small native `EventTarget`/`CustomEvent` bridge. |
-| [`src/lobby/lobby.js`](src/lobby/lobby.js) | Room data, visibility, refresh, timeout, stale-response guard, validation, and join event. |
-| [`src/lobby/view.js`](src/lobby/view.js) | DOM rendering and form interactions only. |
-| [`src/sim/world.js`](src/sim/world.js) | Preserved simulation plus event publication and arena configuration. |
-| [`src/render`](src/render) | DPR-safe arena, sprites, HUD, loading gauge, and lobby field. Rendering never advances simulation. |
+| [errors.js](src/assets/errors.js) | Типи помилок HTTP/JSON та правила повторення і скасування |
+| [loader.js](src/assets/loader.js) | fetchJson, завантажувачі, затримка зі скасуванням, withRetry та loadAll |
+| [audio.js](src/audio.js) | AudioContext, розблокування звуку, декодовані буфери й відтворення |
+| [events.js](src/events.js) | Шина EventTarget / CustomEvent |
+| [lobby.js](src/lobby/lobby.js) | Дані кімнат, видимість, запити, timeout, перевірка введення та join |
+| [view.js](src/lobby/view.js) | Відображення лобі та взаємодія з DOM-формою |
+| [world.js](src/sim/world.js) | Симуляція, конфігурація арени та створення подій |
+| [render](src/render) | Спрайти, HUD, loading і фон лобі з урахуванням DPR |
 
-The game loop starts only after `await loadAll(...)` and after the player joins. Leaving stops it before the lobby creates a new refresh interval.
+Ігровий цикл починається лише після `await loadAll(...)` та входу в кімнату. Вихід зупиняє цикл до повторного запуску оновлень лобі.
 
-## Promises in this project
+Симуляція не імпортує audio, HUD або DOM. Вона надсилає події, а відповідні модулі підписуються на них.
 
-A promise begins **pending** and settles once as either **fulfilled** with a value or **rejected** with a reason. Later attempts to settle it do nothing. Here, each asset promise remains pending across fetch, body reading, and decoding; it fulfills with the usable asset or rejects with a structured error.
+AudioContext створюється під час підготовки, щоб декодувати буфери. Якщо браузер тримає його у стані `suspended`, натискання Join викликає `resume()`. Отже, відтворення починається після жесту користувача, а декодування не відкладається до першого пострілу.
 
-`.then` always schedules a microtask, even for an already-fulfilled promise. `await` is the same mechanism with sequential syntax: the async function returns control at the `await`, and its continuation becomes a microtask when the awaited promise settles. That is why the Canvas and input remain responsive during startup.
+## Як тут працюють Promise та await
 
-A thrown loader or decoder error becomes a rejection. `loadAll` uses `Promise.all`, so the first critical rejection moves startup into the failure screen; it does not cancel other work automatically. Cancellation is explicit: the shared `AbortSignal` reaches every fetch and also rejects a pending backoff delay. One `try/catch` in the startup coordinator receives errors from the entire awaited chain.
+Promise починається у стані **pending** і завершується один раз: **fulfilled** зі значенням або **rejected** із причиною помилки. Повторні спроби завершити його нічого не змінюють.
 
-The combinators map cleanly to the game:
+Promise ресурсу очікує fetch, читання тіла та декодування. Результатом є готовий ресурс або помилка. Обробник `.then` виконується як мікрозадача навіть для вже виконаного Promise.
 
-- `Promise.all`: all critical assets must be ready, in stable manifest order.
-- `Promise.allSettled`: appropriate for a future optional cosmetic pack.
-- `Promise.race`: the classic timeout shape, although this project uses abort signals so the losing fetch is actually cancelled.
-- `Promise.any`: appropriate for a future fastest healthy asset mirror.
+`await` призупиняє поточну async-функцію, дозволяючи викликачеві продовжити роботу; продовження після нього планується як мікрозадача. Очікування мережі тому не займає головний потік. Довгий синхронний код усередині async-функції все одно міг би блокувати сторінку.
 
-## Retry and cancellation policy
+Помилка loader або decoder переходить у відхилення Promise. `Promise.all` відхиляється після першої критичної помилки, але самостійно не скасовує інші операції. Координатор запуску обробляє помилку через `try/catch` і явно скасовує спільний сигнал. Signal передається у fetch та очікування між повторними спробами.
 
-`withRetry` defaults to three attempts with `baseMs × 2^(attempt-1)` and ±25% jitter.
+| Комбінатор | Застосування |
+| --- | --- |
+| Promise.all | Реально використовується для всіх критичних ресурсів; порядок результатів відповідає manifest |
+| Promise.allSettled | Можливий варіант для необов’язкових декоративних ресурсів |
+| Promise.race | Можливий варіант очікування запиту або таймера; сам по собі не скасовує fetch |
+| Promise.any | Можливий варіант вибору першого успішного дзеркала ресурсу |
 
-| Failure | Automatic retry? | Reason |
+Останні три рядки — приклади використання, а не заявлені реалізовані функції гри.
+
+## Повторні спроби та скасування
+
+`withRetry` за замовчуванням робить до трьох спроб. Затримка: `baseMs × 2^(attempt-1)` із випадковим відхиленням ±25%. Це exponential backoff із jitter: кожна наступна пауза більша, а різні клієнти не мають повторювати запити одночасно.
+
+| Помилка | Автоматичне повторення | Причина |
 | --- | --- | --- |
-| Network `TypeError` | Yes | The transport may recover. |
-| HTTP 5xx | Yes | The server failure may be transient. |
-| Timeout | Yes | It is classified as transient. |
-| HTTP 4xx | No | Repeating the same request will not fix the URL or permission. |
-| Malformed JSON | No | Repeating validly delivered bad data is not recovery. |
-| Explicit `AbortError` | No | Cancellation is the requested outcome. |
+| Мережева TypeError | Так | З’єднання може відновитися |
+| HTTP 5xx | Так | Збій сервера може бути тимчасовим |
+| Timeout | Так, якщо операцію обгорнуто у withRetry | Перевищення часу віднесено до тимчасових збоїв |
+| HTTP 4xx | Ні | Повторення не виправить адресу або права доступу |
+| Неправильний JSON | Ні | Потрібно виправити самі дані |
+| Явний AbortError | Ні | Скасування — це запитана дія |
 
-The loading screen still offers a manual Retry after any failure. That allows a corrected deployment or restored connection to recover while preventing wasteful automatic retries for deterministic errors.
+Після помилки доступна ручна Retry. Вона дозволяє почати нову спробу, коли ресурс або з’єднання вже виправлено. Сигнал скасування не можна повторно використати після abort — для нового завантаження створюється новий контролер.
 
-## Lobby lifecycle
+## Життєвий цикл лобі
 
-`Lobby` owns data and state but creates no DOM nodes. `mountLobby` subscribes to its events and renders the form. `enter()` performs an immediate refresh and creates one interval; `leave()` clears that interval, aborts the active request, increments the request version, and emits the hidden state.
+Lobby зберігає дані й стан, але не створює DOM-вузлів. `mountLobby` слухає його події та відображає форму.
 
-Each refresh combines a leave/supersede controller with `AbortSignal.timeout(3500)`. A newer refresh aborts the older request. Even if a test double or intermediary ignores abort, the captured request version prevents the older response from replacing newer rooms. Automated tests prove timeout reporting, visible-only refresh, abort-on-leave, and stale-response protection.
+`enter()` одразу оновлює кімнати й створює один таймер. `leave()` прибирає таймер, скасовує поточний запит, змінює номер версії запиту та повідомляє про приховування.
 
-The static [`public/api/rooms`](public/api/rooms) response deliberately stops at local room selection. There are no sockets, accounts, databases, multiplayer messages, or Lab 04 server behavior.
+Кожне оновлення поєднує сигнал виходу/заміни запиту з `AbortSignal.timeout(3500)`. Новий запит скасовує попередній. Номер версії також не дає старій відповіді перезаписати нові дані, навіть якщо джерело проігнорувало abort.
 
-## Sequential versus concurrent loading experiment
+[public/api/rooms](public/api/rooms) — статичний список кімнат. Join запускає локальну гру з обраним конфігом. Мережевий мультиплеєр і сервер наступної лабораторної тут ще не реалізовані.
 
-The reproducible evidence command is:
+## Експеримент: послідовні та одночасні запити
+
+Команда для повторення:
 
 ```sh
 npm run evidence
 ```
 
-Method: a local Node HTTP server exposed the same three no-store endpoints with controlled response delays of 120 ms (sprite), 180 ms (sound), and 90 ms (arena). Each of five trials fetched them sequentially, then fetched them concurrently with `Promise.all`. Timing used `performance.now()` around the complete response waits. Environment: Node v26.4.0 on macOS arm64, loopback HTTP on `127.0.0.1`, recorded 2026-09-18.
+Локальний HTTP-сервер Node відповідав на три запити з керованими затримками: 120 мс для спрайта, 180 мс для звуку та 90 мс для арени. У кожному з п’яти запусків спочатку виконувалися послідовні `await fetch(...)`, потім ті самі запити запускалися одночасно через `Promise.all`. Використано `cache: "no-store"`.
 
-| Trial | Sequential | Concurrent |
+**Межа вимірювання:** `performance.now()` охоплює очікування Promise від fetch, тобто отримання заголовків відповідей. Скрипт не очікує окремо читання body або декодування зображень/аудіо. Ці числа показують виграш від перекриття мережевих очікувань, а не повний час реального `loadAll`.
+
+Середовище запису: Node v26.4.0, macOS arm64, HTTP на `127.0.0.1`, 18.09.2026.
+
+| Запуск | Послідовно, мс | Одночасно, мс |
 | ---: | ---: | ---: |
-| 1 | 410.27 ms | 183.68 ms |
-| 2 | 400.08 ms | 183.27 ms |
-| 3 | 398.95 ms | 183.45 ms |
-| 4 | 399.83 ms | 183.60 ms |
-| 5 | 400.04 ms | 182.90 ms |
-| **Mean** | **401.83 ms** | **183.38 ms** |
+| 1 | 410.27 | 183.68 |
+| 2 | 400.08 | 183.27 |
+| 3 | 398.95 | 183.45 |
+| 4 | 399.83 | 183.60 |
+| 5 | 400.04 | 182.90 |
+| **Середнє** | **401.83** | **183.38** |
 
-Concurrent completion was 2.19× faster in this setup (54.4% less wall time) because independent waits overlapped and total time approached the slowest response. This is a controlled event-loop/coordination experiment, not a public-network throughput benchmark: the delays are synthetic server response delays on loopback, payloads are tiny, DNS/TLS are absent, and real networks add congestion, caching, and connection limits. Raw evidence, environment, and failure logs are stored in [`docs/evidence/lab-03-async-evidence.json`](docs/evidence/lab-03-async-evidence.json).
+У цих умовах одночасні запити були у **2,19 раза швидші** — на **54,4% менше часу**. Незалежні очікування перекриваються, тому загальний час наближається до найдовшої відповіді.
 
-## Five event-order puzzles
+Затримки штучні, файли маленькі, DNS/TLS відсутні. У реальній мережі впливають кеш, пропускна здатність і кількість з’єднань. [Первинні дані та логи збоїв](docs/evidence/lab-03-async-evidence.json) збережені без зміни чисел.
 
-Predictions were written before running the browser harness at [`tools/event-order.html`](tools/event-order.html). Observed output matched every prediction in the Chromium-based in-app browser.
+## П’ять головоломок про порядок виконання
 
-### 1. `await` yields
+Приклади запускаються через [tools/event-order.html](tools/event-order.html) локального dev-сервера. Нижче — очікуваний порядок і записаний результат у браузері на Chromium. Рядки в коді залишені без перекладу, щоб їх можна було порівняти з логами.
+
+### 1. await віддає керування
 
 ```js
 async function arm() {
@@ -157,13 +170,13 @@ async function arm() {
 log("boot"); arm(); log("continue");
 ```
 
-Predicted: `boot, arm, continue, armed`
+Очікувано: `boot, arm, continue, armed`.
 
-Observed: `boot, arm, continue, armed`
+Отримано: `boot, arm, continue, armed`.
 
-`arm` runs synchronously until `await`; its continuation is a microtask.
+`arm` виконується синхронно до await; продовження після await є мікрозадачею.
 
-### 2. A timer created inside a chained reaction
+### 2. Таймер усередині then
 
 ```js
 log("dock");
@@ -174,13 +187,13 @@ queueMicrotask(() => log("manual-micro"));
 log("clear");
 ```
 
-Predicted: `dock, clear, micro-1, manual-micro, micro-2, timer-in-then`
+Очікувано: `dock, clear, micro-1, manual-micro, micro-2, timer-in-then`.
 
-Observed: `dock, clear, micro-1, manual-micro, micro-2, timer-in-then`
+Отримано: `dock, clear, micro-1, manual-micro, micro-2, timer-in-then`.
 
-The first reaction queues the second reaction behind the already queued manual microtask; the new timer waits for a later task.
+Перший then додає наступний обробник після вже запланованої ручної мікрозадачі. Таймер чекає окремої задачі.
 
-### 3. Animation frame and its microtask
+### 3. requestAnimationFrame і його мікрозадача
 
 ```js
 requestAnimationFrame(() => {
@@ -192,13 +205,13 @@ Promise.resolve().then(() => log("microtask"));
 log("scheduled");
 ```
 
-Predicted for this fresh Chromium task: `scheduled, microtask, timer, animation-frame, frame-microtask`
+Очікувано для записаного запуску Chromium: `scheduled, microtask, timer, animation-frame, frame-microtask`.
 
-Observed: `scheduled, microtask, timer, animation-frame, frame-microtask`
+Отримано: `scheduled, microtask, timer, animation-frame, frame-microtask`.
 
-The normal microtask drains first; Chromium ran the due timer task before the next rendering opportunity, and the promise created inside `requestAnimationFrame` ran before returning from that rendering checkpoint. Timer-versus-frame ordering is host timing dependent, so only the measured environment is claimed.
+Спочатку завершується синхронний код і його мікрозадача. У цьому запуску таймер виконався до наступного rAF, а мікрозадача з rAF — під час тієї ж фази оновлення відображення. **Порядок між таймером і rAF залежить від моменту планування; наведена послідовність не є універсальною гарантією.**
 
-### 4. Rejection recovery
+### 4. Відновлення після відхилення
 
 ```js
 Promise.resolve()
@@ -210,13 +223,13 @@ Promise.resolve()
 log("sync");
 ```
 
-Predicted: `sync, caught, finally, recovered`
+Очікувано: `sync, caught, finally, recovered`.
 
-Observed: `sync, caught, finally, recovered`
+Отримано: `sync, caught, finally, recovered`.
 
-The throw rejects the next promise, skips the fulfillment handler, and the catch converts the chain back to fulfillment.
+Throw відхиляє наступний Promise, тому обробник успіху пропускається. Catch обробляє помилку, і ланцюжок знову продовжується успішно.
 
-### 5. `Promise.all` fails fast but does not cancel
+### 5. all відхиляється, але не скасовує решту
 
 ```js
 const slow = new Promise(resolve => setTimeout(() => {
@@ -228,32 +241,37 @@ queueMicrotask(() => log("queued-microtask"));
 log("sync");
 ```
 
-Predicted: `sync, queued-microtask, all-rejected, slow-settled`
+Очікувано: `sync, queued-microtask, all-rejected, slow-settled`.
 
-Observed: `sync, queued-microtask, all-rejected, slow-settled`
+Отримано: `sync, queued-microtask, all-rejected, slow-settled`.
 
-The aggregate rejection is delivered through another promise reaction; the already-started timer still completes because promises do not cancel one another.
+Catch сукупного Promise додається через наступну реакцію Promise, після вже запланованої мікрозадачі. Раніше запущений таймер продовжує роботу.
 
-## Failure gallery
+## Галерея збоїв
 
-The evidence runner used real HTTP responses and abort signals. The browser harness at `failure-gallery.html?case=404|timeout|abort|malformed` rendered each error through the same Canvas loading component, exposed **Retry recovered path**, then completed through a corrected sprite or JSON endpoint.
+Скрипт перевірки використовує справжні HTTP-відповіді та сигнали скасування. Локальна сторінка `failure-gallery.html?case=404|timeout|abort|malformed` показує помилку через той самий Canvas-компонент та кнопку **Retry recovered path**. Після натискання використовується справний тестовий ресурс.
 
-| Case | Observed failure | Automatic policy | Browser recovery |
+Цю сторінку потрібно запускати через `npm run dev`: повільний endpoint налаштовано у Vite. На статичному GitHub Pages його немає; основне демо та збережені логи доступні окремо.
+
+| Випадок | Записана помилка | Політика | Результат відновлення |
 | --- | --- | --- | --- |
-| Missing sprite | `HttpError`, HTTP 404, 2.59 ms | No 4xx retry | Corrected sprite decoded; `Recovery verified`. |
-| Network timeout | `TimeoutError`, 67.40 ms | Eligible for bounded retry | Corrected arena JSON loaded; `Recovery verified`. |
-| Abort during load | `AbortError: pilot left`, 45.98 ms | Never retry explicit abort | New controller loaded arena JSON; `Recovery verified`. |
-| Malformed JSON | `JsonParseError`, 2.44 ms | No parse-error retry | Corrected arena JSON loaded; `Recovery verified`. |
+| Відсутній спрайт | HttpError, HTTP 404, 2.59 мс | Без автоматичного retry для 4xx | Справний спрайт декодовано; Recovery verified |
+| Перевищено час запиту | TimeoutError, 67.40 мс | Допускається обмежений retry | Справний JSON арени завантажено; Recovery verified |
+| Скасування під час завантаження | AbortError: pilot left, 45.98 мс | Явне скасування не повторюється | Новий контролер завантажив JSON; Recovery verified |
+| Неправильний JSON | JsonParseError, 2.44 мс | Без автоматичного retry помилки формату | Справний JSON завантажено; Recovery verified |
 
-These are logs rather than fabricated screenshots. The exact raw records are in [`docs/evidence/lab-03-async-evidence.json`](docs/evidence/lab-03-async-evidence.json); the full browser smoke record is in [`docs/evidence/lab-03-browser-smoke.json`](docs/evidence/lab-03-browser-smoke.json).
+Докази представлені логами:
 
-## Preserved Labs 01–02 behavior
+- [Первинні записи async-експериментів](docs/evidence/lab-03-async-evidence.json).
+- [Браузерна перевірка Lab 03](docs/evidence/lab-03-browser-smoke.json).
 
-The 1/60 s fixed-step accumulator, clamped long frames, interpolation, resize/DPR synchronization, bounded telemetry, hidden/blur input cleanup, entity `Map`, deferred removal, collisions, homing composition, pickups, score, particles, and two-second safe respawn remain covered by their original regression tests.
+## Збережена поведінка попередніх робіт
 
-Sprite rendering changes presentation, not simulation. `World` still owns no Canvas or DOM object. The event bus is injected, so tests can observe payloads without constructing audio or UI modules.
+Залишилися крок 1/60 с, accumulator, clamp, інтерполяція, DPR/resize, телеметрія, очищення вводу, Map сутностей, відкладене видалення, колізії, homing, бонуси, рахунок, частинки та безпечне відновлення через дві секунди.
 
-## Validation
+Спрайти змінюють малювання, а не симуляцію. World не містить DOM або Canvas. Шину подій можна передати ззовні, тому тестам не потрібно створювати аудіо чи інтерфейс.
+
+## Перевірки
 
 ```sh
 npm run check
@@ -262,13 +280,15 @@ npm run build
 npm run evidence
 ```
 
-The suite contains 45 deterministic tests. Lab 03 coverage includes fetch success/404/5xx/malformed JSON, exact retry schedule with injected RNG and delay, no retry on 4xx, abort during delay, concurrent start and stable result mapping, monotonic progress, signal propagation through all loaders, promise fail-fast behavior, every lobby lifecycle rule, event payloads, forbidden simulation dependencies, overlapping audio sources, and explicit sprite source rectangles.
+У наборі **45 автоматичних тестів**. Перевіряються успішний fetch, 404/5xx, неправильний JSON, розклад retry з керованою випадковістю, відсутність retry для 4xx, скасування паузи, одночасний старт, порядок результатів, незменшуваний прогрес, передавання signal, поведінка Promise.all, життєвий цикл лобі, події, залежності симуляції, одночасні звуки та прямокутники спрайтів.
 
-The real-browser smoke covers startup progress, lobby refresh and validation, room selection, the audio unlock path, sprite gameplay, firing, leaving/re-entering, all four failures and their Retry recovery, console errors, and the preserved responsive/DPR behavior. The in-app browser cannot prove an audible waveform or force `document.hidden`; overlapping source creation, hidden-input cleanup, long-frame clamping, and DPR changes therefore also have deterministic automated coverage rather than invented manual claims.
+Браузерна перевірка охоплює loading, лобі, валідацію імені, вибір кімнати, розблокування аудіо, гру, постріли, вихід/повторний вхід, чотири збої та Retry, консоль і адаптивність.
 
-## Run all three tagged labs together
+Наявні браузерні дані не доводять, що звук фізично чути з динаміків, і не дозволяють примусово встановити document.hidden. Джерела звуку, очищення прихованого вводу, clamp і DPR додатково перевіряються автоматично. Перед захистом звук слід прослухати після Join.
 
-Release worktrees are detached, runnable snapshots outside the development checkout:
+## Одночасний запуск трьох версій
+
+У корені репозиторію:
 
 ```sh
 mkdir -p ../RotorLoop-runs
@@ -280,7 +300,7 @@ npm ci --prefix ../RotorLoop-runs/lab-02
 npm ci --prefix ../RotorLoop-runs/lab-03
 ```
 
-In three terminals:
+Якщо папки вже існують, використати наявні робочі копії або інші вільні назви. У трьох терміналах:
 
 ```sh
 npm run --prefix ../RotorLoop-runs/lab-01 dev -- --port 5171
@@ -288,21 +308,21 @@ npm run --prefix ../RotorLoop-runs/lab-02 dev -- --port 5172
 npm run --prefix ../RotorLoop-runs/lab-03 dev -- --port 5173
 ```
 
-The Pages workflow builds current `main` with `/rotorloop/` as its Vite base and each immutable tag with `/rotorloop/<tag>/`. The manifest resolves every asset relative to its own URL, and the lobby endpoint resolves through `import.meta.env.BASE_URL`, so tagged subpaths do not fall back to the site root.
+GitHub Pages збирає main зі шляхом `/rotorloop/`, а кожну версію — з `/rotorloop/<tag>/`. Manifest визначає адреси ресурсів відносно власного URL, а лобі використовує `import.meta.env.BASE_URL`, тому кожна версія завантажує власні ресурси.
 
-## Lab 03 checklist
+## Чекліст
 
-- [x] Shared `fetchJson` checks `response.ok` and distinguishes 4xx, 5xx, and parse failures
-- [x] Image, audio, and JSON loaders accept `AbortSignal`; audio decodes during loading
-- [x] Cancellable exponential backoff with jitter; retry only network, timeout, and 5xx
-- [x] `Promise.all` concurrent loading, stable mapping, and real monotonic per-item progress
-- [x] Canvas loading, Cancel, failure, and Retry/recovery states
-- [x] Original sprite sheet with explicit source rectangles and generated local audio
-- [x] User-gesture Web Audio unlock and overlapping buffer sources
-- [x] `EventTarget`/`CustomEvent` bus; simulation imports no audio, HUD, or DOM code
-- [x] Separate `Lobby` data model and DOM view with timeout, visible-only refresh, abort, and stale guard
-- [x] Five measured event-order puzzles
-- [x] Sequential/concurrent raw samples and honest limitations
-- [x] Four-case failure gallery with real logs and browser recovery
-- [x] Lab 01–02 regressions preserved
-- [x] Versioned Pages paths for `main`, `lab-01`, `lab-02`, and `lab-03`
+- [x] fetchJson перевіряє response.ok і розрізняє HTTP-помилки та неправильний JSON.
+- [x] Усі loaders приймають AbortSignal; аудіо декодується під час loading.
+- [x] Exponential backoff із jitter та скасуванням; немає retry для 4xx.
+- [x] Promise.all, відповідність результатів manifest і справжній прогрес за ресурсами.
+- [x] Canvas loading, Cancel, повідомлення про помилку та Retry.
+- [x] Спрайтшит із заданими прямокутниками та локальні звуки.
+- [x] Відтворення Web Audio після жесту користувача, звуки можуть накладатися.
+- [x] EventTarget / CustomEvent; симуляція не імпортує audio, HUD або DOM.
+- [x] Окремі модель і DOM лобі, timeout, оновлення, abort та захист від старих відповідей.
+- [x] П’ять головоломок із результатами й поясненнями.
+- [x] Порівняння запитів із первинними даними та зазначеними межами вимірювання.
+- [x] Галерея чотирьох збоїв із логами відновлення.
+- [x] Поведінка Lab 01–02 збережена.
+- [x] Посилання на окремі демо та версія для здачі lab-03.
