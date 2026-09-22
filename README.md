@@ -1,154 +1,148 @@
-# RotorLoop — Entity Arena
+# RotorLoop — сутності, колізії та композиція
 
-Fly a quadcopter through a live Canvas arena, launch rate-limited homing rounds, collect field modules, break asteroids, and survive the two-second recovery cycle.
+**Лабораторна 2. Об’єкти, прототипи та this: модель сутностей.**
 
-**Lab 02 · JavaScript objects and classes · Canvas 2D · fixed 60 Hz simulation**
+Продовження арени з першої лабораторної. Тепер квадрокоптер стріляє, кулі можуть наводитися на цілі, астероїди руйнуються, а бонуси відновлюють здоров’я або прискорюють стрільбу. Після знищення корабель відновлюється через дві секунди часу симуляції.
 
-[Play the latest build](https://xand0dev.github.io/rotorloop/) · [Frozen Lab 01](https://xand0dev.github.io/rotorloop/lab-01/) · [Frozen Lab 02](https://xand0dev.github.io/rotorloop/lab-02/) · [Choose a release](https://xand0dev.github.io/rotorloop/versions/)
+## Що здаємо
 
-## Run the two lab demos separately
+- [Репозиторій із тегом lab-02](https://github.com/xand0dev/rotorloop/tree/lab-02).
+- Цей README з поясненням помилки `this`, виправленням та порівнянням композиції й наслідування.
+- [Демо лабораторної 2](https://xand0dev.github.io/rotorloop/lab-02/).
+- [Демо лабораторної 1](https://xand0dev.github.io/rotorloop/lab-01/) · [Усі версії](https://xand0dev.github.io/rotorloop/versions/).
 
-Use Node 24 (`.nvmrc`; validated with the version declared there).
+## Запуск і керування
 
-Clone the repository once, enter it, and create two detached tagged snapshots:
+Потрібен Node.js 24; версія вказана у `.nvmrc`.
 
 ```sh
 nvm use
+npm ci
+npm run dev
+```
+
+Ці команди запускають поточну робочу копію. Щоб окремо відкрити саме версії перших двох лабораторних, у корені репозиторію створити робочі копії тегів:
+
+```sh
 git worktree add --detach ../RotorLoop-lab-01 lab-01
 git worktree add --detach ../RotorLoop-lab-02 lab-02
-```
-
-### Demo Lab 01 — fixed game loop
-
-```sh
 npm ci --prefix ../RotorLoop-lab-01
-npm run --prefix ../RotorLoop-lab-01 dev -- --port 5171
+npm ci --prefix ../RotorLoop-lab-02
 ```
 
-Open [http://127.0.0.1:5171/](http://127.0.0.1:5171/). This worktree is frozen at `lab-01`; do not develop or commit inside it.
-
-### Demo Lab 02 — entity model
-
-In a second terminal:
+Потім у двох терміналах:
 
 ```sh
-npm ci --prefix ../RotorLoop-lab-02
+npm run --prefix ../RotorLoop-lab-01 dev -- --port 5171
 npm run --prefix ../RotorLoop-lab-02 dev -- --port 5172
 ```
 
-Open [http://127.0.0.1:5172/](http://127.0.0.1:5172/). Both demos can run simultaneously. This worktree is frozen at `lab-02`; normal development stays on `main`.
+Адреси: [Lab 01](http://127.0.0.1:5171/) і [Lab 02](http://127.0.0.1:5172/). Обидві копії прив’язані до своїх тегів; подальшу розробку вести в основній гілці. Якщо папки вже існують, використати наявні копії або інші вільні назви.
 
-For only the latest development build, run `npm ci` and `npm run dev` in the repository root. `npm run build` creates `dist/`; `npm run preview` serves it. The game has no backend or runtime dependency.
+`npm run build` створює `dist/`, `npm run preview` запускає перегляд збірки. Серверна частина грі не потрібна.
 
-| Key | Action |
+| Клавіша | Дія |
 | --- | --- |
-| W / ↑ | Forward thrust |
-| A / ←, D / → | Yaw left / right |
-| Space | Fire; holding it uses a deliberate cooldown |
-| R | Reset arena once per press |
-| H | Toggle loop telemetry |
+| W / ↑ | Тяга вперед |
+| A / ←, D / → | Поворот ліворуч / праворуч |
+| Space | Постріл; при утриманні діє затримка між пострілами |
+| R | Скинути арену один раз на натискання |
+| H | Показати або приховати телеметрію |
 
-Click the arena to focus. Blur and hidden-page handlers clear held input so a lost `keyup` cannot leave the ship moving or firing.
+Перед керуванням потрібно клацнути по арені. При втраті фокуса або приховуванні сторінки стан клавіш очищається, щоб пропущений `keyup` не залишив корабель у русі чи стрільбі.
 
-## What Lab 02 adds
+## Що додано
 
-- `Vector2` with non-mutating vector operations.
-- An `Entity` base class and `Ship extends Entity`; every concrete entity is only one prototype step below `Entity`.
-- A `Map<number, Entity>` world with generator-based filtering and deferred removal.
-- Bullets with TTL, bouncing asteroids, two data-driven pickups, particle explosions, score, private ship HP, damage feedback, and safe respawn after exactly two seconds of simulation time.
-- The same homing behavior attached to bullets and an asteroid without a `HomingEntity` subclass.
-- A separate circle-collision pass. Its intentionally simple O(n²) broad phase can be replaced without changing entity classes.
+- `Vector2` з операціями, які не змінюють вихідні вектори.
+- Базовий `Entity` і `Ship extends Entity`; усі конкретні сутності мають лише один рівень наслідування.
+- `World` зі сховищем `Map<number, Entity>`, генератором фільтрації та відкладеним видаленням.
+- Кулі з TTL, астероїди, два типи бонусів, вибухи з частинок, рахунок і приватне здоров’я корабля.
+- Самонаведення, яке однаково додається кулі та астероїду.
+- Окрема система колізій кіл. Зараз вона перевіряє пари за O(n²), але її можна замінити без зміни класів сутностей.
 
-The visual language still comes from the Lab 01 FPV training field: dark survey grid, landing ring, pale aircraft frame, and orange camera marker. Lab 02 adds cyan modules and guided rounds, a red hunter marker, hit flashes, particles, hull/score/weapon readouts, and a central respawn status. These signals explain game state without covering the arena.
+На арені бонуси й керовані кулі позначені блакитним, астероїд-переслідувач — червоним. Є спалахи влучань, частинки, показники здоров’я, рахунку, зброї та часу до відновлення.
 
-## Architecture and lifecycle
+## Структура і життєвий цикл
 
 ```text
-keyboard state                 Canvas renderer (read-only)
-      │                                  ▲
-      ▼                                  │ interpolated previous/current
-fixed-step loop ── controls ──► World ───┘
+стан клавіатури                      Canvas читає стан
+       ↓                                    ↑
+цикл із фіксованим кроком → World → попередній / поточний стан
                               │
-             Map<id, Entity> ├─ update snapshot
-                              ├─ circle-pair collisions
-             Set<id> pending └─ end-of-step sweep
+           Map<id, Entity> ────┼─ оновлення знімка сутностей
+                              ├─ перевірка пар на колізії
+           Set<id> видалень ──└─ очищення наприкінці кроку
 ```
 
-| Module | Responsibility |
+| Модуль | Призначення |
 | --- | --- |
-| [`src/sim/vector.js`](src/sim/vector.js) | Pure `Vector2`; every operation returns a new vector. |
-| [`src/sim/entity.js`](src/sim/entity.js) | Unique private-static ID source and common position, velocity, angle, radius, `alive`, and `update(dt)` contract. |
-| [`src/sim/ship.js`](src/sim/ship.js) | `Ship extends Entity`, private `#hp`, motion, weapon cooldown, damage, power-up, and respawn behavior. |
-| [`src/sim/entities.js`](src/sim/entities.js) | Bullet, asteroid, pickup, and explosion rules. |
-| [`src/sim/behaviors.js`](src/sim/behaviors.js) | Homing and pickup application as composition. |
-| [`src/sim/collision.js`](src/sim/collision.js) | Pure circle overlap and unique-pair generator. |
-| [`src/sim/world.js`](src/sim/world.js) | `Map` ownership, spawn/despawn, update order, collision effects, score, and respawn scheduling. |
-| [`src/loop.js`](src/loop.js) | Preserved clamped accumulator, fixed 1/60 s ticks, interpolation alpha, and telemetry. |
-| [`src/render`](src/render) | DPR-safe Canvas surface and rendering; it never advances simulation. |
+| [vector.js](src/sim/vector.js) | Чисті операції Vector2: векторні операції повертають новий вектор, length і dot — число |
+| [entity.js](src/sim/entity.js) | Приватний static-лічильник ID, координати, швидкість, кут, радіус, alive та базовий update |
+| [ship.js](src/sim/ship.js) | Рух, fire, затримка між пострілами, приватне #hp, пошкодження, бонуси й відновлення |
+| [entities.js](src/sim/entities.js) | Кулі, астероїди, бонуси та вибухи |
+| [behaviors.js](src/sim/behaviors.js) | Самонаведення й застосування бонусів через композицію |
+| [collision.js](src/sim/collision.js) | Перетин кіл та генератор унікальних пар |
+| [world.js](src/sim/world.js) | Сховище сутностей, порядок оновлення, колізії, рахунок і планування відновлення |
+| [loop.js](src/loop.js) | Цикл із кроком 1/60 с, accumulator, clamp, alpha і телеметрія |
+| [render](src/render) | Малювання з урахуванням DPR; не змінює фізику |
 
-An entity is spawned into the `Map`, copied into the current step's update snapshot, updated, collision-tested, and finally swept if its ID is in the pending-removal `Set`. Spawning an explosion during collision handling is safe: it appears immediately for rendering but does not update until the next tick. A despawned bullet remains in the collision generator's captured candidate list, so the resolver also checks `alive`; one dead bullet cannot damage two overlapping targets.
+`spawn` додає сутність у Map. На початку кроку World створює знімок списку, оновлює його, обробляє колізії та наприкінці прибирає позначені об’єкти. Вибух, створений під час колізії, вже можна намалювати, але вперше він оновиться на наступному кроці.
 
-The ship follows a separate recovery transition:
+`despawn` одразу позначає сутність мертвою та додає ID у Set для видалення. Обробка колізій повторно перевіряє `alive`: куля, що вже зникла після першого влучання, не може пошкодити другу ціль із тієї ж вибірки пар.
 
-```text
-active ── hp reaches 0 ──► removed + explosion
-  ▲                              │
-  └── safe position + full HP ◄──┘ 2.0 simulated seconds
-```
+Знищений корабель видаляється з активних сутностей, на його місці виникає вибух. Через **2,0 с симуляції** корабель отримує повне здоров’я й безпечну позицію. Позиція не підходить, якщо поруч астероїд: перевіряється сума радіусів і запас 80 px. Джерело випадкових чисел можна передати ззовні, тому тести повторювані.
 
-Safe-position candidates are rejected when an asteroid is within the combined radii plus an 80 px margin. Random selection is injected, so tests stay deterministic.
-
-## Prototype delegation, not copied methods
-
-For `const ship = new Ship()`, the relevant lookup chain is:
+## Прототипи: пошук методу, а не копіювання
 
 ```text
-ship ──► Ship.prototype ──► Entity.prototype ──► Object.prototype ──► null
-           fire(), hp,         beginStep(), x/y,
-           update()            base update()
+ship → Ship.prototype → Entity.prototype → Object.prototype → null
 ```
 
-`fire` and `update` are not own properties copied into each instance. `ship.fire` first checks `ship`, then finds one shared function on `Ship.prototype`. `Object.hasOwn(ship, "update")` is false, while `ship instanceof Entity` is true. Private `#hp` is internal class state; public code can only read `ship.hp` and change it through `damage`, `heal`, or `prepareRespawn`.
+Для `const ship = new Ship()` власні дані лежать у самому об’єкті. Методи `fire` та `update` шукаються в прототипі й не копіюються в кожен екземпляр.
 
-All entity subclasses point directly to `Entity.prototype`. There is no `MovingEntity`, `DamageableEntity`, or deeper chain.
+`Object.hasOwn(ship, "update")` повертає `false`, а `ship instanceof Entity` — `true`. Поле `#hp` приватне: зовні доступний getter `ship.hp`, а змінюється здоров’я через `damage`, `heal` та `prepareRespawn`.
 
-## The detached `this` failure
+Усі конкретні класи успадковуються прямо від Entity. Проміжних класів MovingEntity чи DamageableEntity немає.
 
-Methods are functions, and `this` is chosen by the call site. This deliberately failing test captures the bug:
+## Помилка з this та її виправлення
+
+Значення `this` залежить від способу виклику. Цей приклад навмисно відтворює помилку:
 
 ```js
 const ship = new Ship();
 const detached = ship.fire;
-detached(); // TypeError: `this` is undefined in an ES module
+detached(); // TypeError: this дорівнює undefined
 ```
 
-Production uses a wrapper arrow created once in `main.js`:
+Окремий виклик в ES-модулі не зберігає корабель як отримувача. Якщо передати `ship.fire` у слухач події, отримувачем також буде не корабель.
+
+У [main.js](src/main.js) використано створену один раз стрілку:
 
 ```js
 const fire = () => world.firePlayerWeapon();
 ```
 
-The wrapper closes over `world`, and `World#firePlayerWeapon` calls `this.player.fire()` with both receivers intact. It also lets the fixed-step loop poll held Space and apply the ship's cooldown instead of depending on keyboard-repeat timing.
+Вона зберігає доступ до `world`, а `World#firePlayerWeapon` викликає `this.player.fire()`. Обидва виклики мають правильний отримувач. Цикл перевіряє утримання Space й застосовує затримку зброї незалежно від автоповтору клавіатури.
 
-Three valid fixes have different costs:
-
-| Fix | Strength | Trade-off |
+| Спосіб | Перевага | Обмеження |
 | --- | --- | --- |
-| `() => ship.fire()` | Explicit receiver and easy to add arguments; selected here | Keep the wrapper reference if a listener must later be removed. |
-| `ship.fire.bind(ship)` | Produces a reusable permanently bound function | Creates another function; the exact bound reference is required for listener cleanup. |
-| `fire = () => { ... }` class field | Safe to pass directly and concise at the call site | Allocates one function per instance instead of sharing it on the prototype. |
+| `() => ship.fire()` | Явно зберігає виклик на кораблі; легко передати аргументи | Для removeEventListener потрібно зберегти посилання на wrapper |
+| `ship.fire.bind(ship)` | Повертає функцію з прив’язаним отримувачем | Створює нову функцію; її також потрібно зберігати для видалення слухача |
+| Поле класу `fire = () => { ... }` | Можна передати без wrapper | Окрема функція на кожен екземпляр замість спільного методу прототипу |
 
-The four binding rules, in precedence order, are `new`, explicit (`call`/`apply`/`bind`), implicit (`object.method()`), and default. Arrows are the exception: they capture the surrounding `this` and ignore rebinding.
+Правила `this` за пріоритетом: `new`, явний отримувач через `call/apply/bind`, виклик `object.method()`, звичайний виклик. Стрілки не мають власного `this` і беруть його із зовнішньої області; переприв’язування їх не змінює.
 
-## Why the world uses `Map`
+## Чому World використовує Map і Set
 
-IDs stay numeric instead of becoming object-property strings; `.size`, ordered iteration, and `delete` are native; and names inherited from `Object.prototype` cannot collide with entity keys. Frequent spawn/despawn is also the operation `Map` is designed to express. A `Set` represents pending removals because an ID is either scheduled once or not scheduled, and duplicate requests need no special handling.
+У Map числовий ID залишається числом. Є `.size`, впорядкований обхід і `.delete`; немає конфліктів з успадкованими ключами на кшталт `constructor`. Це зручно для регулярного додавання й видалення сутностей.
 
-`World` is itself iterable, while `world.ofKind(kind)` is a generator. The generator yields matches lazily rather than allocating an array every time homing searches for a target.
+Set зберігає ID, заплановані до видалення: повторний запит не створює дубліката.
 
-## Composition instead of a class maze
+World можна обходити через `for...of`. Генератор `world.ofKind(kind)` повертає відповідні сутності поступово, без створення нового масиву при кожному пошуку цілі для самонаведення.
 
-An inheritance-first design would need capabilities in incompatible places:
+## Чому композиція замість глибокого наслідування
+
+Варіант із наслідуванням міг би виглядати так:
 
 ```text
 Entity
@@ -161,17 +155,23 @@ Entity
    └─ RapidFirePickup
 ```
 
-Moving homing logic upward would make unrelated movers target-aware; duplicating `HomingBullet` and `HomingAsteroid` would copy logic; multiple inheritance is unavailable. Making pickups subclasses of `Ship` would falsely give them HP, controls, and weapons.
+Самонаведення потрібне кулі та астероїду. Якщо перенести його в MovingEntity, усі рухомі об’єкти отримають зайву поведінку. Якщо залишити в HomingBullet і HomingAsteroid — доведеться дублювати код. Бонус не повинен успадковуватися від Ship, бо йому не потрібні керування, зброя та здоров’я.
 
-RotorLoop instead gives either moving entity a small `homing: { targetKind, turnRate }` field. `applyHoming(entity, world, dt)` operates on that capability. Pickups are stationary entities with a `pickup` data object such as `{ effect: "shield", amount: 35 }`; `applyPickup` interprets it. This is deliberately lighter than an ECS: class identity still expresses the five entity types, while cross-cutting features are explicit data and functions. The same approach will serialize more cleanly when networking arrives in a later lab.
+Тому сутність може мати поле `homing: { targetKind, turnRate }`. Функція `applyHoming(entity, world, dt)` застосовує цю можливість і до кулі, і до астероїда.
 
-## Preserved Lab 01 timing contract
+Pickup — нерухома сутність із даними, наприклад `{ effect: "shield", amount: 35 }`. Функція `applyPickup` застосовує ефект при колізії.
 
-`requestAnimationFrame` owns scheduling, but simulation advances only in whole 1/60 s steps. Frame delta is capped at 0.25 s, the accumulator can run zero or multiple ticks per rendered frame, and its remainder becomes interpolation alpha. The first callback establishes the time origin. The existing restart-generation guard, bounded 120-interval telemetry, shortest-angle interpolation, resize/DPR handling, and wrap synchronization remain covered by regression tests.
+Класи описують основні типи об’єктів, а спільні додаткові можливості — дані та функції. Повноцінний ECS тут не потрібний. Такі дані також простіше передавати мережею в наступних лабораторних.
 
-Rendering reads current and previous state only. It does not mutate physics. `prefers-reduced-motion` reduces particle count and disables pickup pulsing while leaving gameplay unchanged.
+## Що збережено з лабораторної 1
 
-## Validation
+rAF відповідає за планування, фізика — за цілі кроки по 1/60 с. Frame delta обмежено 0,25 с; на один кадр може припадати нуль або кілька кроків. Залишок accumulator утворює alpha.
+
+Збережені захист від повторного запуску, історія 120 інтервалів, інтерполяція найкоротшого кута, resize/DPR, синхронізація wrap та очищення вводу. Renderer читає стани й не просуває фізику.
+
+Налаштування `prefers-reduced-motion` зменшує кількість частинок і вимикає пульсацію бонусів, зберігаючи правила гри.
+
+## Перевірки
 
 ```sh
 npm run check
@@ -179,21 +179,23 @@ npm test
 npm run build
 ```
 
-The suite covers every `Vector2` operation, zero normalization, unique IDs and prototype relationships, world iteration/generators/deferred sweep, bullet origin/velocity/TTL/rate limiting, collision pairs and dead-bullet guarding, private HP through its public API, two-second respawn, homing on two entity kinds, pickup application, the detached-method failure and wrapper fix, plus all relevant Lab 01 loop, interpolation, input, telemetry, and DPR behavior.
+**31 автоматичний тест** охоплює операції Vector2 й нульову нормалізацію, унікальні ID та прототипи, Map і генератори, відкладене видалення, постріл із носа з успадкованою швидкістю, TTL, затримку зброї, колізії, приватне HP, відновлення через 2 с, homing на двох типах, бонуси та втрату/відновлення this.
 
-The [recorded Lab 02 browser smoke](docs/evidence/lab-02-browser-smoke.json) checks movement, yaw, firing, cooldown, expiry, asteroid hits, score, pickup collection, homing, damage, explosion, death/respawn, wrap, reset, resize/DPR, focus, telemetry, and console errors. The in-app browser kept `document.hidden === false` when hidden, so blur/hidden cleanup and background clamping are supported by the preserved Lab 01 browser evidence plus automated regressions rather than a fabricated new hidden-tab claim. This is functional smoke evidence, not a frame-rate benchmark.
+Також збережено перевірки першої лабораторної: цикл, інтерполяція, ввід, телеметрія та DPR.
 
-## Lab 02 checklist
+[Запис браузерної перевірки Lab 02](docs/evidence/lab-02-browser-smoke.json) містить політ, поворот, постріли, TTL, влучання, рахунок, бонуси, самонаведення, пошкодження, вибух, відновлення, wrap, R, resize/DPR, фокус і помилки консолі.
 
-- [x] Pure `Vector2`; `Entity` with private static ID source; one-level entity inheritance
-- [x] `World` over `Map`, `[Symbol.iterator]`, generator `ofKind`, deferred `Set` sweep
-- [x] Bullet TTL, asteroids, pickups, particles, score, damage, explosions, safe two-second respawn
-- [x] Separate swappable circle-collision system with no double damage from dead bullets
-- [x] Private `#hp` exposed through a getter and public behavior
-- [x] Deliberate detached-`this` regression test; wrapper, `.bind`, and class-field fixes documented
-- [x] Homing on bullet and asteroid; pickups as composition/data
-- [x] Lab 01 fixed step, accumulator, interpolation, resize/DPR, telemetry, and input cleanup preserved
-- [x] English architecture/design notes, focused automated tests, and browser smoke procedure
-- [x] Final validated commit tagged `lab-02`
+Вбудований браузер під час приховування залишав `document.hidden === false`. Тому очищення вводу при приховуванні та обмеження довгого кадру підтверджені попередніми браузерними даними й автоматичними тестами. Браузерний запис перевіряє функції гри, а не вимірює продуктивність.
 
-The annotated `lab-01` tag remains unchanged and identifies the validated first submission.
+## Чекліст
+
+- [x] Чистий Vector2, Entity з приватним static-лічильником ID, один рівень наслідування.
+- [x] World на Map, Symbol.iterator, генератор ofKind та відкладений sweep через Set.
+- [x] Кулі з TTL, астероїди, бонуси, частинки, рахунок і відновлення через 2 с.
+- [x] Окрема система колізій без повторної шкоди від мертвої кулі.
+- [x] Приватне #hp з getter і публічними методами зміни.
+- [x] Тест втрати this; wrapper, bind та поле-стрілка пояснені.
+- [x] Homing для кулі й астероїда та pickup через композицію.
+- [x] Поведінка лабораторної 1 збережена.
+- [x] README українською, автоматичні тести та браузерні докази.
+- [x] Версія для здачі позначена тегом lab-02.
