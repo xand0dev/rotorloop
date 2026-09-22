@@ -1,16 +1,21 @@
-# RotorLoop — FPV Drone Arena
+# RotorLoop — арена для квадрокоптера
 
-Fly a quadcopter. See the difference between a simulation tick and a rendered frame.
+**Лабораторна 1. Цикл подій JavaScript та ігровий цикл.**
 
-**Lab 01 · JavaScript · Canvas 2D · fixed 60 Hz simulation**
+У цій версії можна керувати квадрокоптером на Canvas і спостерігати, чим крок симуляції відрізняється від намальованого кадру. Фізика працює з фіксованим кроком 1/60 секунди.
 
-[Raw measurements and reproduction notes](docs/evidence/RESULTS.md)
+## Що здаємо
 
-![RotorLoop running in Chrome](docs/evidence/production.png)
+- [Репозиторій із тегом lab-01](https://github.com/xand0dev/rotorloop/tree/lab-01).
+- Цей README з результатами трьох експериментів.
+- [Демо лабораторної 1](https://xand0dev.github.io/rotorloop/lab-01/).
+- [Первинні вимірювання та спосіб повторення](docs/evidence/RESULTS.md).
 
-## Run
+![RotorLoop у Chrome](docs/evidence/production.png)
 
-Use Node 24 (`.nvmrc`; validated on 24.20.0).
+## Запуск і керування
+
+Потрібен Node.js 24. Версія вказана у `.nvmrc`; початкові перевірки виконано на 24.20.0.
 
 ```sh
 nvm install
@@ -19,148 +24,152 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite. Without nvm, use any existing Node 24 installation. `npm run build` creates `dist/`; `npm run preview` serves that build. No backend or account is needed to play.
+Відкрити локальну адресу, яку виведе Vite. Якщо nvm не встановлений, підійде наявний Node.js 24. Команда `npm run build` створює збірку в `dist/`, а `npm run preview` запускає її перегляд.
 
-| Key | Action |
+| Клавіша | Дія |
 | --- | --- |
-| W / ↑ | Arcade forward thrust |
-| A / ←, D / → | Yaw left / right |
-| R | Reset once per press |
-| H | Toggle loop telemetry; flight continues |
+| W / ↑ | Тяга вперед |
+| A / ←, D / → | Поворот ліворуч / праворуч |
+| R | Повернення у початковий стан один раз на натискання |
+| H | Показати або приховати телеметрію |
 
-Click the arena to focus. Keyboard controls require a keyboard; the layout resizes to narrow viewports but does not implement the optional touch/gamepad stretch tasks.
+Спочатку потрібно клацнути по арені, щоб вона отримала фокус. Для гри потрібна клавіатура. Інтерфейс пристосовується до вузького вікна, але додаткове керування дотиком чи геймпадом не реалізоване.
 
-## What is deliberately small
+Квадрокоптер намальований засобами Canvas: рама, чотири двигуни, помаранчевий ніс та слід тяги. Сітка й посадкове кільце допомагають бачити рух. Це двовимірна аркадна модель: тяга тут рухає апарат уперед, що є спрощенням реальної фізики квадрокоптера.
 
-The drone is a Canvas X-frame with four motors, an orange nose camera and a rear thrust wash. The landing ring and grid make motion legible. This is a 2D arcade model, not a six-degree-of-freedom FPV simulator: actual multicopter throttle is not forward translation. No fake battery or radio statistics are shown.
+У грі немає стороннього фізичного рушія чи бібліотек часу виконання. Vite і Biome використовуються під час розробки. Сервер або обліковий запис для гри не потрібні.
 
-There are no runtime libraries, generated image assets, frameworks or physics engines. Vite and Biome are pinned development dependencies. Lab 02–08 features are intentionally absent.
-
-## Two clocks, one simulation
+## Як працює цикл
 
 ```text
-keyboard events → private input Sets
-                         ↓
-rAF timestamp → accumulator → simulate(1/60), zero or more times
-                         ↓
-                  previous / current
-                         ↓ alpha
-               interpolated Canvas frame
+події клавіатури → приватні Set у модулі вводу
+                              ↓
+час rAF → accumulator → simulate(1/60), нуль або кілька разів
+                              ↓
+                     попередній / поточний стан
+                              ↓ alpha
+                      малювання на Canvas
 ```
 
-| Boundary | Responsibility |
+| Модуль | Призначення |
 | --- | --- |
-| [main.js](src/main.js) | Connect input, snapshots, reset, arena and rendering; clean up hot reload |
-| [loop.js](src/loop.js) | rAF ownership, start/stop, clamp, accumulator and measured statistics |
-| [telemetry.js](src/telemetry.js) | Bounded interval history, distribution summaries and simulation totals |
-| [input.js](src/input.js) | Closure state; held vs consuming press edges; repeat/focus cleanup |
-| [sim](src/sim) | Immutable plain-data ship integration and arena math, without DOM or Canvas |
-| [render](src/render) | Canvas transforms, CSS-pixel/DPR boundary, interpolation and drawing |
+| [main.js](src/main.js) | Поєднує ввід, стани, арену, скидання і малювання; прибирає ресурси при гарячому перезавантаженні |
+| [loop.js](src/loop.js) | Керує rAF, запуском і зупинкою, accumulator та обмеженням часу кадру |
+| [telemetry.js](src/telemetry.js) | Зберігає обмежену історію інтервалів і статистику симуляції |
+| [input.js](src/input.js) | Зберігає стан клавіш у замиканні, відрізняє утримання від нового натискання |
+| [sim](src/sim) | Розраховує рух та межі арени без DOM і Canvas |
+| [render](src/render) | Виконує інтерполяцію, малювання та налаштування Canvas з урахуванням DPR |
 
-`createLoop({ step = 1/60, simulate, render })` returns `start`, `stop`, `getStats`. `integrate(ship, { turn, thrust }, dt)` returns a new `{ x, y, vx, vy, angle, thrust }`. Rendering never advances physics.
+`createLoop({ step = 1/60, simulate, render })` повертає `start`, `stop` і `getStats`. Чиста функція `integrate(ship, { turn, thrust }, dt)` повертає новий стан `{ x, y, vx, vy, angle, thrust }`, не змінюючи аргументи.
 
-SIM and DISPLAY divide actual counts by elapsed time; FRAME is the latest callback interval, **not drawing CPU time**. DISPLAY counts render callbacks, not independently verified physical presentations. The alpha strip shows the actual accumulator fraction.
+Час між кадрами додається до accumulator. Поки його вистачає на цілий крок, викликається симуляція. Залишок ділиться на тривалість кроку й утворює `alpha`. Renderer використовує його для плавного переходу між попереднім і поточним станом.
 
-The incoming frame delta is capped at 0.25 s. Whole fixed steps consume the accumulator; the fractional remainder becomes alpha. Near 60 steps/s is the normal-load target. Hidden tabs and discarded time cannot be promised 60 steps per wall second. Interpolation adds approximately one simulation tick of presentation delay.
+Вхідний інтервал обмежено 0,25 с. Це не дає після довгої паузи виконувати надмірну кількість кроків. Частота близько 60 кроків/с очікується за звичайного навантаження; у прихованій вкладці або після відкидання зайвого часу ця частота не гарантується. Інтерполяція додає приблизно один крок затримки відображення.
 
-## Read the telemetry
+## Що показує телеметрія
 
-The optional Lab 01 frame-time strip is implemented as a chronological history of the last **120 measured intervals**. H toggles its panel; it starts open on desktop and closed on narrow screens. Very short layouts retain the compact HUD. Collection continues when hidden. R resets the drone, while telemetry totals persist until the loop restarts.
+SIM і DISPLAY — фактична кількість кроків симуляції та викликів малювання, поділена на час. FRAME — інтервал між callbacks, а не час роботи процесора над малюванням. DISPLAY також не вимірює фізичні оновлення монітора.
 
-| Metric | What it lets you explain |
+Панель зберігає останні **120 виміряних інтервалів**. На широкому екрані вона відкрита спочатку, на вузькому — прихована. Клавіша H змінює видимість, але збір даних триває. R скидає апарат; накопичені показники зберігаються до перезапуску циклу.
+
+| Показник | Значення |
 | --- | --- |
-| Interval strip | Uneven pacing that an average FPS can hide. Red means above the **16.7 ms reference**, not a measured dropped frame. Bars clip at 50 ms; numeric summaries retain raw values. |
-| Mean / p95 / maximum | The mean describes the window; p95 is the nearest-rank 95th percentile; maximum catches rare stalls p95 may miss. |
-| Steps / frame | Zero or multiple fixed ticks within one render callback; rendering and simulation have different clocks. |
-| Sim clock / total ticks | Simulated seconds = completed ticks × 1/60; this need not equal elapsed wall time. |
-| Clamp lost | Cumulative elapsed time discarded above 250 ms per interval, in seconds. It is not input latency or a dropped-frame count. |
-| Alpha | The actual remaining fraction of a tick used for interpolation. |
+| Смужки інтервалів | Нерівномірність кадрів. Червоний означає перевищення орієнтира 16,7 мс, а не доведений пропуск кадру |
+| Mean / p95 / maximum | Середнє, 95-й процентиль за методом nearest-rank і найбільша затримка |
+| Steps / frame | Кількість кроків симуляції на один виклик малювання: може бути нуль або кілька |
+| Sim clock / total ticks | Час симуляції = кількість кроків × 1/60 с |
+| Clamp lost | Сумарний час, відкинутий через перевищення 250 мс на інтервал |
+| Alpha | Частка невикористаного кроку для інтерполяції |
 
-The first callback establishes the time origin and adds no artificial zero sample. History updates each callback; mean/p95/max refresh after approximately 250 ms of accumulated intervals, so the numbers can briefly lag the moving strip. History covers roughly two seconds at 60 callbacks/s and one at 120, **not a fixed duration**. Storage is bounded and sorting happens only on summary updates.
+Висота смужок обмежена 50 мс, але числові показники зберігають повні значення. Перший callback лише встановлює початок відліку. Статистичні підсумки оновлюються приблизно кожні 250 мс накопиченого часу, тому можуть трохи відставати від смужок.
 
-The three experiments below retain their recorded baseline revisions; they are not benchmarks of the expanded HUD.
+120 інтервалів — це близько двох секунд при 60 callbacks/с або однієї при 120. Обсяг пам’яті обмежений; сортування виконується лише при оновленні підсумків. Експерименти нижче належать до зафіксованих вимірювальних версій, а не є новим вимірюванням розширеної панелі.
 
-## Where multiplayer enters the course
+## Основні рішення
 
-The [course roadmap](https://github.com/rmalkevy/Programming-Practice-Projects/blob/main/courses/javascript/README.md) introduces a Node.js/WebSocket server and rooms in **Lab 04**, authoritative state with prediction/reconciliation and binary snapshots in **Lab 05**, then public deployment in **Lab 08**. Vite currently serves development files; it is not a multiplayer game server.
+| Проблема | Рішення та перевірка |
+| --- | --- |
+| Повторний запуск циклу | Ідемпотентні start/stop та номер запуску; є тести перезапуску з render і simulate |
+| Поворот від +179° до −179° | Інтерполяція найкоротшим шляхом у 2°, а не через повний оберт |
+| Перехід через край арени | Попередня координата синхронізується з новою; немає смуги через усю арену |
+| Retina та зміна монітора | Координати світу в CSS-пікселях, роздільність Canvas залежить від DPR; абсолютний setTransform |
+| Втрата keyup при зміні фокуса | Очищення приватних Set на blur і приховуванні сторінки |
+| Порівняння траєкторій | Окремий облік реального часу й часу симуляції; точне порівняння після 300 кроків |
 
-The pure simulation is reusable in Node. Future work must give every player the same server-owned arena dimensions (today bounds follow the local Canvas), sequence input commands by tick, and run the authoritative clock on the server. Fixed stepping is a foundation for that work, not a networking implementation.
+Перехід через край жертвує інтерполяцією однієї координати протягом одного кроку. Зміна DPR перевіряється навіть без resize-події.
 
-## Engineering decisions
+## Налаштування руху
 
-| Problem | Chosen solution | Tradeoff / proof |
-| --- | --- | --- |
-| Repeated start or restart inside a callback | Idempotent lifecycle plus run generation token | Regression tests cover restart from both render and simulate |
-| +179° to −179° | Shortest signed angular difference | Midpoint follows the 2° path; frozen-snapshot renderer test |
-| Right edge → left edge | Synchronize the crossed previous coordinate | Avoids a cross-arena streak; sacrifices interpolation for one tick on that axis |
-| Retina / monitor changes | CSS world, DPR backing store, absolute setTransform | Resize and DPR-only browser checks; density fallback performs no layout read on ordinary frames |
-| Lost keyup after focus change | Clear private input Sets on blur/hidden | Browser and unit checks; R consumes one edge, not keyboard repeat |
-| “Same position after five seconds” | Record both clocks, then compare exactly 300 fixed ticks | Separates scheduler endpoints from integration sensitivity |
+Порядок розрахунку: поворот → прискорення вздовж напрямку → експоненційне гальмування → обмеження швидкості → нова позиція. Позиція використовує вже оновлену швидкість — це напівнеявний метод Ейлера.
 
-## Physics tuning
-
-Update order: yaw → acceleration along heading → exponential drag → speed clamp → position using the updated velocity (semi-implicit Euler).
-
-| Constant | Final value | Reason |
+| Константа | Значення | Пояснення |
 | --- | ---: | --- |
-| TURN_RATE | 3 rad/s | A full yaw turn takes about 2.09 s; easy to steer with short taps |
-| THRUST_ACCELERATION | 480 CSS px/s² | Builds visible speed without teleporting on input |
-| DRAG | 1.2 s⁻¹ | Velocity halves in about 0.58 s when coasting; drift remains visible |
-| MAX_SPEED | 340 CSS px/s | At 60 Hz, movement stays below 5.67 px per tick |
+| TURN_RATE | 3 рад/с | Повний оберт приблизно за 2,09 с |
+| THRUST_ACCELERATION | 480 CSS px/с² | Помітний набір швидкості |
+| DRAG | 1,2 с⁻¹ | Без тяги швидкість зменшується вдвічі приблизно за 0,58 с |
+| MAX_SPEED | 340 CSS px/с | Менше 5,67 px переміщення за крок при 60 Гц |
 
-The planned constants were retained after the actual keyboard smoke: thrust, yaw, coast, reset and wrapping behaved coherently. No unsupported claim of extensive human playtesting is made. Exponential damping is time-based; the complete acceleration/position integrator still has numerical timestep error.
+Ці значення перевірені короткою перевіркою керування: тяга, поворот, рух за інерцією, скидання та перехід через межу. Це не тривале користувацьке тестування. Експоненційне гальмування залежить від часу, але повний чисельний розрахунок руху все одно має похибку, залежну від кроку.
 
-## Experiment 1 — block the main thread
+## Експеримент 1 — блокування головного потоку
 
-| Run | Callbacks/s | Mean ms | SD ms | p95 ms | p99 ms | Max ms |
+| Режим | Викликів/с | Середнє, мс | SD, мс | p95, мс | p99, мс | Максимум, мс |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| rAF baseline | 120.01 | 8.333 | 0.355 | 9.10 | 9.30 | 10.30 |
-| 100 ms block / 60 renders | 101.79 | 9.825 | 11.797 | 9.30 | 100.30 | 100.50 |
+| Звичайний rAF | 120.01 | 8.333 | 0.355 | 9.10 | 9.30 | 10.30 |
+| Блокування на 100 мс кожні 60 кадрів | 101.79 | 9.825 | 11.797 | 9.30 | 100.30 | 100.50 |
 
-![Measured frame intervals](docs/evidence/frame-times.svg)
+![Виміряні інтервали між кадрами](docs/evidence/frame-times.svg)
 
-A once-per-60-frame busy-wait barely moves p95; it dramatically moves p99 and maximum. Main-thread callbacks run to completion: promises, timers and more rAF requests cannot preempt this work. Input callback delay is expected from that mechanism; it was not separately latency-timed. Production contains no busy-wait.
+Рідкісна затримка майже не змінила p95, але суттєво збільшила p99 і максимум. Синхронний callback виконується до завершення: Promise, таймер або новий rAF не можуть його перервати. Тому обробка вводу теж має чекати; окремий замір затримки клавіатури не проводився. У звичайній версії гри штучного блокування немає.
 
-The final HUD sampling window also reacted: baseline **SIM 59.506, DISPLAY 120.004, FRAME 8.3 ms**; blocked **SIM 60, DISPLAY 98, FRAME 99.9 ms**. These short-window readings differ from the full-run averages above. Catch-up preserved the normal simulation cadence while rendering stalled.
+Показники HUD у короткому вікні: без блокування **SIM 59.506, DISPLAY 120.004, FRAME 8.3 мс**; із блокуванням **SIM 60, DISPLAY 98, FRAME 99.9 мс**. Вони відрізняються від середніх за весь дослід. Accumulator дозволив наздогнати симуляцію після затримки малювання.
 
-## Experiment 2 — setInterval versus rAF
+## Експеримент 2 — setInterval проти rAF
 
-| Run | Callbacks/s | Mean ms | SD ms | p95 ms | p99 ms | Max ms |
+| Режим | Викликів/с | Середнє, мс | SD, мс | p95, мс | p99, мс | Максимум, мс |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| rAF foreground | 120.01 | 8.333 | 0.355 | 9.10 | 9.30 | 10.30 |
-| setInterval(16) foreground | 62.50 | 16.000 | 0.664 | 17.10 | 17.30 | 17.50 |
+| rAF у видимій вкладці | 120.01 | 8.333 | 0.355 | 9.10 | 9.30 | 10.30 |
+| setInterval(16) у видимій вкладці | 62.50 | 16.000 | 0.664 | 17.10 | 17.30 | 17.50 |
 
-During real ~5-second hidden-tab runs, rAF's largest interval was **5032.9 ms**; the timer's was **1000.3 ms**. This Chrome paused rAF and throttled timers. A timer is not aligned to rendering opportunities; 16 ms requests 62.5 callbacks/s, not exactly 60. rAF adapts to the observed display cadence.
+Коли вкладку приховали приблизно на 5 с, найбільший інтервал rAF становив **5032.9 мс**, таймера — **1000.3 мс**. У цьому Chrome rAF призупинявся, а таймер сповільнювався.
 
-## Experiment 3 — variable versus fixed timestep
+Таймер не узгоджений із моментом малювання браузера. Інтервал 16 мс означає 62,5 виклику/с, а не рівно 60. rAF у досліді підлаштовувався під спостережувану частоту відображення.
 
-Real Chrome DevTools CPU throttling, reproducible thrust, five-second wall-time runs:
+## Експеримент 3 — змінний і фіксований крок часу
 
-| Run | Final x | Final y | Steps | Simulated s | Wall s |
+Використано реальне сповільнення CPU в Chrome DevTools, однакову тягу й запуски тривалістю близько п’яти секунд реального часу.
+
+| Режим | Кінцеве x | Кінцеве y | Кроків | Час симуляції, с | Реальний час, с |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| variable wall-time CPU 1x | 1614.301372 | 300.000000 | 601 | 5.009200 | 5.007300 |
-| variable wall-time CPU 6x | 1613.789824 | 300.000000 | 597 | 5.007600 | 5.001300 |
-| fixed wall-time CPU 1x | 1610.784130 | 300.000000 | 300 | 5.000000 | 5.004100 |
-| fixed wall-time CPU 6x | 1610.784130 | 300.000000 | 300 | 5.000000 | 5.004000 |
+| Змінний крок, CPU 1x | 1614.301372 | 300.000000 | 601 | 5.009200 | 5.007300 |
+| Змінний крок, CPU 6x | 1613.789824 | 300.000000 | 597 | 5.007600 | 5.001300 |
+| Фіксований крок, CPU 1x | 1610.784130 | 300.000000 | 300 | 5.000000 | 5.004100 |
+| Фіксований крок, CPU 6x | 1610.784130 | 300.000000 | 300 | 5.000000 | 5.004000 |
 
-Variable normal/throttled distance: **0.511548 px**; fixed: **0.000000 px**. The wall-time endpoints differ slightly, so this alone is not a clean numerical comparison.
+Різниця між звичайним і сповільненим запуском: **0.511548 px** зі змінним кроком і **0.000000 px** із фіксованим. Оскільки моменти завершення трохи різняться, лише цієї таблиці недостатньо для чистого порівняння похибки інтегрування.
 
-At **exactly five simulated seconds**, variable normal/throttled x was **1611.173389 / 1611.217935**, a **0.044546 px** difference. Fixed x was **1610.784130** in both runs after **300 ticks**. All y values were 300.
+За **рівно п’ять секунд симуляції** координата x зі змінним кроком дорівнювала **1611.173389 / 1611.217935**, різниця — **0.044546 px**. Фіксований крок дав **1610.784130** в обох запусках після **300 кроків**. Усі координати y дорівнювали 300.
 
-CPU 6× kept this lightweight scene near 120 callbacks/s. That is why its measured divergence was small. A separately labeled **35 ms render-work probe** reduced cadence to about 28.45 callbacks/s: variable x changed by **1.424528 px** relative to the normal exact-time run; fixed changed by **0.000000 px**. The probe is not presented as a DevTools result.
+Навіть зі сповільненням CPU 6x ця проста сцена працювала близько 120 callbacks/с, тому розбіжність невелика. Окремий дослід зі **штучною роботою на 35 мс під час малювання** зменшив частоту до близько 28,45 callbacks/с. Тоді різниця змінного кроку відносно звичайного запуску за точним часом становила **1.424528 px**, фіксованого — **0.000000 px**. Цей дослід відокремлено від сповільнення DevTools.
 
-[Full tables, environment, raw samples and repeat procedure](docs/evidence/RESULTS.md). Experiments use isolated worktrees; only evidence and documentation enter production.
+[Повні таблиці, умови, первинні дані та повторення](docs/evidence/RESULTS.md). Експериментальні зміни циклу виконувалися в окремих робочих копіях.
 
-## JavaScript concepts demonstrated
+## Поняття JavaScript, які демонструє робота
 
-- Tasks and microtasks: synchronous logs, Promise reactions and timers produce `1, 4, 3, 2`; a microtask chain can starve rendering.
-- rAF participates in browser rendering updates before repaint; it is neither a timer task nor a microtask.
-- ESM provides explicit dependencies, module scope, strict mode, live bindings and deferred module scripts; top-level `this` is undefined.
-- Closures retain access to the private input Sets. `const` protects the binding, not the Set's contents; `let` is used only for reassignment.
-- Canvas draws locally with save/translate/rotate/restore. Physics is in CSS pixels; DPR is a backing-resolution concern.
-- Repeatability requires the same state, per-tick inputs, math and tick count. Fixed dt does not alone guarantee universal cross-platform lockstep.
+- Синхронний код завершується до реакцій Promise; реакції Promise є мікрозадачами, таймери — задачами. Ланцюжок мікрозадач може затримати малювання.
+- rAF виконується під час оновлення відображення до перемальовування; це не таймер і не мікрозадача.
+- ES-модулі мають явні залежності, власну область видимості, strict mode та live bindings. На верхньому рівні `this === undefined`.
+- Замикання зберігає доступ до приватних Set у модулі вводу. `const` забороняє переприсвоєння змінної, але не зміну вмісту Set.
+- Canvas використовує save/translate/rotate/restore. Фізика працює в CSS-пікселях, DPR визначає роздільність поверхні малювання.
+- Повторюваність потребує однакового стану, команд на кожному кроці, математичних операцій і кількості кроків. Сам fixed dt не гарантує однакового результату на всіх платформах.
 
-## Validation
+## Основа для наступних лабораторних
+
+[Програма курсу](https://github.com/rmalkevy/Programming-Practice-Projects/blob/main/courses/javascript/README.md) передбачає сервер і кімнати в Lab 04, серверний стан та узгодження клієнта в Lab 05, публічне розгортання в Lab 08.
+
+Чисту симуляцію можна повторно використати в Node.js. Для мультиплеєра ще потрібні однакові серверні розміри арени, команди з номерами кроків і серверний годинник. Зараз межі залежать від локального Canvas, а Vite лише роздає файли.
+
+## Перевірки
 
 ```sh
 npm run check
@@ -168,20 +177,24 @@ npm test
 npm run build
 ```
 
-The `lab-01` release passed **all 19 tests**, Biome and the production build on Node 24.20.0. Coverage includes controlled 60/120 Hz timestamps, lifecycle restart safety, bounded telemetry history, pure integration, wrap/interpolation, input cleanup and DPR changes. Browser checks cover thrust/yaw, reset, wrapping, focus loss, resize, DPR 1/2 and console errors. Synthetic scheduler tests are labeled tests, not hardware evidence. The separate [telemetry browser smoke](docs/evidence/telemetry-smoke.json) is a functional check rather than a monitor benchmark; see the [method and reproduction command](docs/evidence/telemetry-method.md).
+Початкова версія `lab-01` пройшла **19 тестів**, перевірку Biome та збірку на Node 24.20.0. Тести охоплюють часові послідовності 60/120 Гц, перезапуск циклу, обмежену історію телеметрії, чисту інтеграцію, wrap, інтерполяцію, очищення вводу та DPR.
 
-[Browser evidence](docs/evidence/browser-smoke.json)
+Браузерні перевірки охоплюють тягу, поворот, R, перехід через межі, втрату фокуса, resize, DPR 1/2 і помилки консолі. Синтетичні часові тести не є вимірюваннями монітора.
 
-## Lab checklist
+- [Результати перевірки в браузері](docs/evidence/browser-smoke.json).
+- [Окрема перевірка телеметрії](docs/evidence/telemetry-smoke.json).
+- [Методика перевірки телеметрії](docs/evidence/telemetry-method.md).
 
-- [x] Vite vanilla, type=module, pinned Biome, .nvmrc
-- [x] rAF, clamped fixed-step accumulator, measured HUD
-- [x] Closure input with isDown / justPressed
-- [x] Pure ship integration, rotation, thrust, drag, speed clamp and wrap
-- [x] Previous/current interpolation, short angle path, DPR and resizing
-- [x] Three measured experiments and event-loop explanations
-- [x] English README with measured experiment results and limitations
-- [x] Unit tests and browser evidence
-- [x] Optional last-120 frame-time strip with explanatory telemetry
+## Чекліст
 
-The annotated `lab-01` tag identifies the validated submission. Verify it with `git show lab-01 --stat`.
+- [x] Vite, ES-модулі, зафіксований Biome та .nvmrc.
+- [x] rAF, accumulator, фіксований крок, clamp та HUD.
+- [x] Ввід через замикання з isDown / justPressed.
+- [x] Чиста функція руху, поворот, тяга, drag, обмеження швидкості та wrap.
+- [x] Інтерполяція станів і найкоротшого кута, DPR та resize.
+- [x] Три експерименти з числовими результатами й поясненнями.
+- [x] README українською зі збереженими результатами та межами вимірювань.
+- [x] Автоматичні тести й браузерні докази.
+- [x] Додаткова панель останніх 120 інтервалів.
+
+Версію для здачі позначено тегом `lab-01`. Перевірка: `git show lab-01 --stat`.
